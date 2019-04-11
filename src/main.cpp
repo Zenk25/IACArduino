@@ -2,20 +2,25 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
+#include <CustomSoftwareSerial.h>
 
 
-byte mac[] = {
-  0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02
-};
+
 // telnet defaults to port 23
 EthernetServer server(80);
+CustomSoftwareSerial* lakeshore;
 
 void setup() {
 
+  byte mac[] = {
+    0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02
+  };
   Serial.begin(9600);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
+  lakeshore =   new CustomSoftwareSerial(2,3);
+  lakeshore->begin(9600,711);
   //Iniciada la SDCard
    if (!SD.begin(4)) {
        return;    // init failed
@@ -23,6 +28,9 @@ void setup() {
    // check for index.htm file
    if (!SD.exists("index2.htm")) {
        return;  // can't find index file
+   }
+   if ( SD.exists("datosF.txt")){
+     SD.remove("datosF.txt");
    }
 
   // You can use Ethernet.init(pin) to configure the CS pin
@@ -47,19 +55,49 @@ void setup() {
     // initialize the Ethernet device not using DHCP:
    /* Ethernet.begin(mac, ip, myDns, gateway, subnet);*/
   }
-  // print your local IP address:
-  Serial.print("My IP address: ");
-  Serial.println(Ethernet.localIP());
-
+  Serial.print(Ethernet.localIP());
   // start listening for clients
   server.begin();
 }
 
 void loop() {
+  lakeshore->write("KRDG?\r\n");
+  delay(1000);
+  if(SD.exists("datos.jso")){
+    SD.remove("datos.jso");
+  }
+  File datos = SD.open("datos.jso",FILE_WRITE);
+  File datosT = SD.open("datosF.txt", FILE_WRITE);
+  int j = 1;
+  datos.print("{");
+  while(lakeshore->available()){
+    delay(2);
+    datos.print("\"C");
+    datos.print(j);
+    datos.print("\":");
+    for (int i = 0; i < 7; i++) {
+      char c;
+      if ((c= lakeshore->read())==',') {
+        c= lakeshore->read();
+      }
+      datos.write(c);
+      datosT.write(c);
+    }
+    datos.print(",");
+    datosT.print(",");
+    ++j;
+    datos.println();
+
+  }
+  datos.print("}");
+  datos.close();
+  datosT.close();
+  Serial.println("Acabo");
+
+  delay(5000);
   // wait for a new client:
   EthernetClient client = server.available();
   if (client) {
-    Serial.println("new client");
     // an http request ends with a blank line
     boolean currentLineIsBlank = true;
     while (client.connected()) {
@@ -71,9 +109,7 @@ void loop() {
         // so you can send a reply
         if (c == '\n' && currentLineIsBlank) {
           // send a standard http response header
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: text/html");
-          client.println("Connection: close");  // the connection will be closed after completion of the response
+          client.println("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close");  // the connection will be closed after completion of the response
           //client.println("Refresh: 5");  // refresh the page automatically every 5 sec
           client.println();
           //Enviar pagina WebServer
