@@ -11,7 +11,6 @@ EthernetServer server(80);
 CustomSoftwareSerial* lakeshore;
 
 void setup() {
-
   byte mac[] = {
     0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02
   };
@@ -19,17 +18,18 @@ void setup() {
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
-  lakeshore =   new CustomSoftwareSerial(2,3);
+
+  lakeshore = new CustomSoftwareSerial(2,3);
   lakeshore->begin(9600,711);
   //Iniciada la SDCard
    if (!SD.begin(4)) {
        return;    // init failed
    }
    // check for index.htm file
-   if (!SD.exists("index2.htm")) {
+   if (!SD.exists("lineas/index.htm")) {
        return;  // can't find index file
    }
-   if ( SD.exists("datosF.txt")){
+   if (SD.exists("datosF.txt")){
      SD.remove("datosF.txt");
    }
 
@@ -92,7 +92,6 @@ void loop() {
   datos.print("}");
   datos.close();
   datosT.close();
-  Serial.println("Acabo");
 
   delay(5000);
   // wait for a new client:
@@ -104,6 +103,7 @@ void loop() {
       if (client.available()) {
         char c = client.read();
         Serial.write(c);
+
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
         // so you can send a reply
@@ -113,7 +113,7 @@ void loop() {
           //client.println("Refresh: 5");  // refresh the page automatically every 5 sec
           client.println();
           //Enviar pagina WebServer
-          File webFile = SD.open("index2.htm");
+          File webFile = SD.open("lineas/index.htm");
           if(webFile){
             while(webFile.available()){
               client.write(webFile.read());
@@ -122,6 +122,7 @@ void loop() {
           }
           break;
         }
+
         if (c == '\n') {
           // you're starting a new line
           currentLineIsBlank = true;
@@ -134,6 +135,7 @@ void loop() {
     // give the web browser time to receive the data
     delay(1);
     // close the connection:
+    Serial.println("se cierra");
     client.stop();
   }
 }
