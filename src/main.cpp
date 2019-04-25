@@ -61,6 +61,7 @@ void setup() {
 }
 
 void loop() {
+
   lakeshore->write("KRDG?\r\n");
   delay(1000);
   if(SD.exists("datos.jso")){
@@ -68,25 +69,40 @@ void loop() {
   }
   File datos = SD.open("datos.jso",FILE_WRITE);
   File datosT = SD.open("datosF.txt", FILE_WRITE);
-  int j = 1;
-  datos.print("{");
+  int j = 1, time = 0, z = 0;
+  datos.println("{\"data\":[");
   while(lakeshore->available()){
     delay(2);
-    datos.print("\"C");
-    datos.print(j);
-    datos.print("\":");
-    for (int i = 0; i < 7; i++) {
-      char c;
-      if ((c= lakeshore->read())==',') {
-        c= lakeshore->read();
-      }
-      datos.write(c);
-      datosT.write(c);
+    if (time > 0) {
+      datos.println(",");
     }
-    datos.print(",");
-    datosT.print(",");
-    ++j;
-    datos.println();
+    datos.print("{");
+    datos.print("\"time\": \"");
+    datos.print(time);
+    datos.print("\",");
+    time += 5;
+
+    while(z < 8){
+      datos.print("\"Temp");
+      datos.print(j);
+      datos.print("\":");
+      for (int i = 0; i < 7; i++) {
+        char c;
+        if ((c= lakeshore->read())==',') {
+          c= lakeshore->read();
+        }
+        datos.write("\""+c);
+        datosT.write(c);
+      }
+      if (z == 7){
+        datos.print("\"");
+      }
+      datos.print("\",");
+      datosT.print(",");
+      ++j;
+      ++z;
+      }
+    datos.print("}");
 
   }
   datos.print("}");
@@ -101,13 +117,13 @@ void loop() {
     boolean currentLineIsBlank = true;
     while (client.connected()) {
       if (client.available()) {
-        char c = client.read();
-        Serial.write(c);
+        char d = client.read();
+        Serial.write(d);
 
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
         // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
+        if (d == '\n' && currentLineIsBlank) {
           // send a standard http response header
           client.println("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close");  // the connection will be closed after completion of the response
           //client.println("Refresh: 5");  // refresh the page automatically every 5 sec
@@ -123,10 +139,10 @@ void loop() {
           break;
         }
 
-        if (c == '\n') {
+        if (d == '\n') {
           // you're starting a new line
           currentLineIsBlank = true;
-        } else if (c != '\r') {
+        } else if (d != '\r') {
           // you've gotten a character on the current line
           currentLineIsBlank = false;
         }
