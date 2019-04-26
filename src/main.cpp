@@ -2,13 +2,12 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
-#include <CustomSoftwareSerial.h>
 
 
 
 // telnet defaults to port 23
 EthernetServer server(80);
-CustomSoftwareSerial* lakeshore;
+int time;
 
 void setup() {
   byte mac[] = {
@@ -19,8 +18,7 @@ void setup() {
     ; // wait for serial port to connect. Needed for native USB port only
   }
 
-  lakeshore = new CustomSoftwareSerial(2,3);
-  lakeshore->begin(9600,711);
+  Serial2.begin(9600,SERIAL_7O1);
   //Iniciada la SDCard
    if (!SD.begin(4)) {
        return;    // init failed
@@ -32,7 +30,13 @@ void setup() {
    if (SD.exists("datosF.txt")){
      SD.remove("datosF.txt");
    }
-
+   if(SD.exists("lake.jso")){
+     SD.remove("lake.jso");
+   }
+   if(SD.exists("temp.jso")){
+     SD.remove("temp.jso");
+   }
+   time = 0;
   // You can use Ethernet.init(pin) to configure the CS pin
   //Ethernet.init(10);  // Most Arduino shields
   //Ethernet.init(5);   // MKR ETH shield
@@ -58,100 +62,127 @@ void setup() {
   Serial.print(Ethernet.localIP());
   // start listening for clients
   server.begin();
+
 }
 
 void loop() {
 
-  lakeshore->write("KRDG?\r\n");
+  Serial2.write("KRDG?\r\n");
   delay(1000);
-  if(SD.exists("datos.jso")){
-    SD.remove("datos.jso");
+  if (!SD.exists("lake.jso")) {
+    File paraComa = SD.open("lake.jso",FILE_WRITE);
+    paraComa.println("{\"data\":[");
+    paraComa.close();
+  }else{
+    File paraComa = SD.open("lake.jso", FILE_WRITE);
+    paraComa.println(",");
+    paraComa.close();
   }
-  File datos = SD.open("datos.jso",FILE_WRITE);
-  File datosT = SD.open("datosF.txt", FILE_WRITE);
-  int j = 1, time = 0, z = 0;
-  datos.println("{\"data\":[");
-  while(lakeshore->available()){
+
+  File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
+  int j = 1, z = 0;
+  while(Serial2.available()){
     delay(2);
-    if (time > 0) {
-      datos.println(",");
-    }
-    datos.print("{");
-    datos.print("\"time\": \"");
-    datos.print(time);
-    datos.print("\",");
+
+    lakeshoreData.print("{");
+    lakeshoreData.print("\"time\": \"");
+    lakeshoreData.print(time);
+    lakeshoreData.print("\",");
     time += 5;
 
     while(z < 8){
-      datos.print("\"Temp");
-      datos.print(j);
-      datos.print("\":");
+      lakeshoreData.print("\"Temp");
+      lakeshoreData.print(j);
+      lakeshoreData.print("\":\"");
       for (int i = 0; i < 7; i++) {
-        char c;
-        if ((c= lakeshore->read())==',') {
-          c= lakeshore->read();
+        char lakeshore;
+        if ((lakeshore = Serial2.read())==',') {
+          lakeshore = Serial2.read();
         }
-        datos.write("\""+c);
-        datosT.write(c);
+        lakeshoreData.write(lakeshore);
       }
-      if (z == 7){
-        datos.print("\"");
+      if (z < 7){
+        lakeshoreData.print("\",");
+      }else{
+        lakeshoreData.print("\"");
       }
-      datos.print("\",");
-      datosT.print(",");
       ++j;
       ++z;
-      }
-    datos.print("}");
-
-  }
-  datos.print("}");
-  datos.close();
-  datosT.close();
-
-  delay(5000);
-  // wait for a new client:
-  EthernetClient client = server.available();
-  if (client) {
-    // an http request ends with a blank line
-    boolean currentLineIsBlank = true;
-    while (client.connected()) {
-      if (client.available()) {
-        char d = client.read();
-        Serial.write(d);
-
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the http request has ended,
-        // so you can send a reply
-        if (d == '\n' && currentLineIsBlank) {
-          // send a standard http response header
-          client.println("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection: close");  // the connection will be closed after completion of the response
-          //client.println("Refresh: 5");  // refresh the page automatically every 5 sec
-          client.println();
-          //Enviar pagina WebServer
-          File webFile = SD.open("lineas/index.htm");
-          if(webFile){
-            while(webFile.available()){
-              client.write(webFile.read());
-            }
-            webFile.close();
-          }
-          break;
-        }
-
-        if (d == '\n') {
-          // you're starting a new line
-          currentLineIsBlank = true;
-        } else if (d != '\r') {
-          // you've gotten a character on the current line
-          currentLineIsBlank = false;
-        }
-      }
     }
-    // give the web browser time to receive the data
-    delay(1);
-    // close the connection:
-    Serial.println("se cierra");
-    client.stop();
+    lakeshoreData.print("}");
+
   }
+  lakeshoreData.close();
+  delay(2);
+  // wait for a new client:
+
+
+  for(int i= 0; i < 2; i++){
+    EthernetClient client = server.available();
+    if (client) {
+      // an http request ends with a blank line
+      boolean currentLineIsBlank = true;
+      String clientRequest = "";
+      while (client.connected()) {
+          char d;
+          while(client.available()){
+            d = client.read();
+            Serial.write(d);
+            clientRequest += d;
+          }
+          // if you've gotten to the end of the line (received a newline
+          // character) and the line is blank, the http request has ended,
+          // so you can send a reply
+
+          if (d == '\n' && currentLineIsBlank && clientRequest.indexOf("/ HTTP/1.1")>0) {
+            Serial.println("Mande el HTML");
+            // send a standard http response header
+            client.println("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection:close");  // the connection will be closed after completion of the response
+            client.println("Refresh: 5");  // refresh the page automatically every 5 sec
+            client.println();
+            //Enviar pagina WebServer
+            File webFile = SD.open("lineas/index.htm");
+            if(webFile){
+              while(webFile.available()){
+                client.write(webFile.read());
+              }
+            webFile.close();
+            }
+            break;
+          }
+          if(clientRequest.indexOf("/datos.json") > 0 && currentLineIsBlank && d== '\n'){
+            Serial.println("Mande el json");
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: application/json");
+            client.println("Connection: close");
+            //client.println("Refresh: 10");
+            client.println();
+            File webFile = SD.open("lake.jso",FILE_READ);
+            if(webFile){
+              while(webFile.available()){
+                client.write(webFile.read());
+              }
+              client.println("]}");
+              client.println();
+
+              webFile.close();
+            }
+            break;
+          }
+          if (d == '\n') {
+            // you're starting a new line
+            currentLineIsBlank = true;
+          } else if (d != '\r') {
+            // you've gotten a character on the current line
+            currentLineIsBlank = false;
+          }
+      }
+      // give the web browser time to receive the data
+      delay(1);
+      // close the connection:
+
+      client.stop();
+    }
+  }
+
 }
