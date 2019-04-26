@@ -2,12 +2,16 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
-
+#include <TimerOne.h>
 
 
 // telnet defaults to port 23
 EthernetServer server(80);
 int secs;
+
+void interrupcion5secs(){
+  Serial.println("Han pasado 5 secs");
+}
 
 void setup() {
   byte mac[] = {
@@ -17,6 +21,8 @@ void setup() {
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
+  Timer1.initialize(5000000);
+  Timer1.attachInterrupt(interrupcion5secs);
 
   Serial2.begin(9600,SERIAL_7O1);
   //Iniciada la SDCard
@@ -59,6 +65,9 @@ void setup() {
   server.begin();
 }
 
+
+
+
 void loop() {
 
   Serial2.write("KRDG?\r\n");
@@ -79,9 +88,9 @@ void loop() {
     delay(2);
 
     lakeshoreData.print("{");
-    lakeshoreData.print("\"secs\": ");
+    lakeshoreData.print("\"time\":\"");
     lakeshoreData.print(secs);
-    lakeshoreData.print(",");
+    lakeshoreData.print("\",");
     secs += 5;
 
     while(z < 8){
@@ -149,7 +158,6 @@ void loop() {
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
             client.println("Connection: close");
-            client.println("Refresh: 10");
             client.println();
             File webFile = SD.open("lake.jso",FILE_READ);
             if(webFile){
