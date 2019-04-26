@@ -7,7 +7,7 @@
 
 // telnet defaults to port 23
 EthernetServer server(80);
-int time;
+int secs;
 
 void setup() {
   byte mac[] = {
@@ -27,16 +27,11 @@ void setup() {
    if (!SD.exists("lineas/index.htm")) {
        return;  // can't find index file
    }
-   if (SD.exists("datosF.txt")){
-     SD.remove("datosF.txt");
-   }
+
    if(SD.exists("lake.jso")){
      SD.remove("lake.jso");
    }
-   if(SD.exists("temp.jso")){
-     SD.remove("temp.jso");
-   }
-   time = 0;
+   secs = 0;
   // You can use Ethernet.init(pin) to configure the CS pin
   //Ethernet.init(10);  // Most Arduino shields
   //Ethernet.init(5);   // MKR ETH shield
@@ -62,7 +57,6 @@ void setup() {
   Serial.print(Ethernet.localIP());
   // start listening for clients
   server.begin();
-
 }
 
 void loop() {
@@ -85,10 +79,10 @@ void loop() {
     delay(2);
 
     lakeshoreData.print("{");
-    lakeshoreData.print("\"time\": \"");
-    lakeshoreData.print(time);
-    lakeshoreData.print("\",");
-    time += 5;
+    lakeshoreData.print("\"secs\": ");
+    lakeshoreData.print(secs);
+    lakeshoreData.print(",");
+    secs += 5;
 
     while(z < 8){
       lakeshoreData.print("\"Temp");
@@ -138,7 +132,7 @@ void loop() {
             Serial.println("Mande el HTML");
             // send a standard http response header
             client.println("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection:close");  // the connection will be closed after completion of the response
-            client.println("Refresh: 5");  // refresh the page automatically every 5 sec
+            //client.println("Refresh: 15");  // refresh the page automatically every 5 sec
             client.println();
             //Enviar pagina WebServer
             File webFile = SD.open("lineas/index.htm");
@@ -155,7 +149,7 @@ void loop() {
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
             client.println("Connection: close");
-            //client.println("Refresh: 10");
+            client.println("Refresh: 10");
             client.println();
             File webFile = SD.open("lake.jso",FILE_READ);
             if(webFile){
@@ -177,7 +171,7 @@ void loop() {
             currentLineIsBlank = false;
           }
       }
-      // give the web browser time to receive the data
+      // give the web browser secs to receive the data
       delay(1);
       // close the connection:
 
