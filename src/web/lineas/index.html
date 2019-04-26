@@ -15,21 +15,24 @@
     </head>
     <body>
       <script>
-      $.getJSON("http://161.72.213.250/datos.json",{}, function (json) {
+      $.getJSON("datos.json", function (json) {
         Morris.Line({
             element: 'myfirstchart',
             data: json.data,
-            xkey: 'time',
+            xkey: 'secs',
+            xLabels: 'Segundos',
             // A list of names of data record attributes that contain y-values.
             //Los 8 canales irán en las y.
             ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'],
             // Labels for the ykeys -- will be displayed when you hover over the
             // chart.
             labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'],
-            resize:true,
+            resize: true,
             pointSize: 0,
             hideHover : true,
-            smooth: false
+            smooth: false,
+            parseTime: false,
+            xLabelAngle: 45
           });
       });
       </script>
