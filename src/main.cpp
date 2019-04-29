@@ -8,9 +8,188 @@
 // telnet defaults to port 23
 EthernetServer server(80);
 int secs;
+boolean puede = false, puede2= false, puede3= false;
 
-void interrupcion5secs(){
-  Serial.println("Han pasado 5 secs");
+void mediciones(int canal){
+  switch(canal){
+    case 1:
+    {
+      Serial1.write("KRDG?\r\n");
+      Serial1.println();
+
+        if (!SD.exists("lake.jso")) {
+          File paraComa = SD.open("lake.jso",FILE_WRITE);
+          paraComa.println("{\"data\":[");
+          paraComa.close();
+        }
+        if(SD.exists("lake.jso") && puede){
+         File paraComa = SD.open("lake.jso", FILE_WRITE);
+         paraComa.println(",");
+         paraComa.close();
+        }
+        if(Serial1.available()){
+          puede = true;
+        }
+        File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
+        int j = 1, z = 0;
+        while(Serial1.available()){
+
+          delay(2);
+
+          lakeshoreData.print("{");
+          lakeshoreData.print("\"time\":\"");
+          lakeshoreData.print(secs);
+          lakeshoreData.print("\",");
+          secs += 5;
+
+          while(z < 8){
+            lakeshoreData.print("\"Temp");
+            lakeshoreData.print(j);
+            lakeshoreData.print("\":\"");
+            for (int i = 0; i < 7; i++) {
+              char lakeshore;
+              if ((lakeshore = Serial1.read())==',') {
+                lakeshore = Serial1.read();
+              }
+              lakeshoreData.write(lakeshore);
+            }
+            if (z < 7){
+              lakeshoreData.print("\",");
+            }else{
+              lakeshoreData.print("\"");
+            }
+            ++j;
+            ++z;
+          }
+          lakeshoreData.print("}");
+
+        }
+        lakeshoreData.close();
+
+      break;
+    }
+    case 2:
+    {
+      Serial2.write("KRDG?\r\n");
+      Serial2.println();
+
+        if (!SD.exists("lake.jso")) {
+          File paraComa = SD.open("lake.jso",FILE_WRITE);
+          paraComa.println("{\"data\":[");
+          paraComa.close();
+        }
+        if(SD.exists("lake.jso") && puede2){
+         File paraComa = SD.open("lake.jso", FILE_WRITE);
+         paraComa.println(",");
+         paraComa.close();
+        }
+        if(Serial2.available()){
+          puede2 = true;
+        }
+        File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
+        int j = 1, z = 0;
+        while(Serial2.available()){
+
+          delay(2);
+
+          lakeshoreData.print("{");
+          lakeshoreData.print("\"time\":\"");
+          lakeshoreData.print(secs);
+          lakeshoreData.print("\",");
+          secs += 5;
+
+          while(z < 8){
+            lakeshoreData.print("\"Temp");
+            lakeshoreData.print(j);
+            lakeshoreData.print("\":\"");
+            for (int i = 0; i < 7; i++) {
+              char lakeshore;
+              if ((lakeshore = Serial2.read())==',') {
+                lakeshore = Serial2.read();
+              }
+              lakeshoreData.write(lakeshore);
+            }
+            if (z < 7){
+              lakeshoreData.print("\",");
+            }else{
+              lakeshoreData.print("\"");
+            }
+            ++j;
+            ++z;
+          }
+          lakeshoreData.print("}");
+
+        }
+        lakeshoreData.close();
+
+      break;
+    }
+    case 3:
+    {
+      Serial3.write("KRDG?\r\n");
+      Serial3.println();
+
+        if (!SD.exists("lake.jso")) {
+          File paraComa = SD.open("lake.jso",FILE_WRITE);
+          paraComa.println("{\"data\":[");
+          paraComa.close();
+        }
+        if(SD.exists("lake.jso") && puede3){
+         File paraComa = SD.open("lake.jso", FILE_WRITE);
+         paraComa.println(",");
+         paraComa.close();
+        }
+        if(Serial3.available()){
+          puede3 = true;
+        }
+        File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
+        int j = 1, z = 0;
+        while(Serial3.available()){
+
+          delay(2);
+
+          lakeshoreData.print("{");
+          lakeshoreData.print("\"time\":\"");
+          lakeshoreData.print(secs);
+          lakeshoreData.print("\",");
+          secs += 5;
+
+          while(z < 8){
+            lakeshoreData.print("\"Temp");
+            lakeshoreData.print(j);
+            lakeshoreData.print("\":\"");
+            for (int i = 0; i < 7; i++) {
+              char lakeshore;
+              if ((lakeshore = Serial3.read())==',') {
+                lakeshore = Serial3.read();
+              }
+              lakeshoreData.write(lakeshore);
+            }
+            if (z < 7){
+              lakeshoreData.print("\",");
+            }else{
+              lakeshoreData.print("\"");
+            }
+            ++j;
+            ++z;
+          }
+          lakeshoreData.print("}");
+
+        }
+        lakeshoreData.close();
+
+      break;
+    }
+    default:
+      Serial.write("Uys algo fui mal.");
+  }
+}
+
+void interrupcion(){
+  Serial.println("Entro en la interrupcion");
+  Serial.println();
+  mediciones(2);
+
 }
 
 void setup() {
@@ -21,10 +200,10 @@ void setup() {
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
-  Timer1.initialize(5000000);
-  Timer1.attachInterrupt(interrupcion5secs);
 
+  Serial1.begin(9600,SERIAL_7O1);
   Serial2.begin(9600,SERIAL_7O1);
+  Serial3.begin(9600,SERIAL_7O1);
   //Iniciada la SDCard
    if (!SD.begin(4)) {
        return;    // init failed
@@ -38,6 +217,9 @@ void setup() {
      SD.remove("lake.jso");
    }
    secs = 0;
+
+   Timer1.initialize(5000000);
+   Timer1.attachInterrupt(interrupcion);
   // You can use Ethernet.init(pin) to configure the CS pin
   //Ethernet.init(10);  // Most Arduino shields
   //Ethernet.init(5);   // MKR ETH shield
@@ -66,56 +248,7 @@ void setup() {
 }
 
 
-
-
-void loop() {
-
-  Serial2.write("KRDG?\r\n");
-  delay(1000);
-  if (!SD.exists("lake.jso")) {
-    File paraComa = SD.open("lake.jso",FILE_WRITE);
-    paraComa.println("{\"data\":[");
-    paraComa.close();
-  }else{
-    File paraComa = SD.open("lake.jso", FILE_WRITE);
-    paraComa.println(",");
-    paraComa.close();
-  }
-
-  File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
-  int j = 1, z = 0;
-  while(Serial2.available()){
-    delay(2);
-
-    lakeshoreData.print("{");
-    lakeshoreData.print("\"time\":\"");
-    lakeshoreData.print(secs);
-    lakeshoreData.print("\",");
-    secs += 5;
-
-    while(z < 8){
-      lakeshoreData.print("\"Temp");
-      lakeshoreData.print(j);
-      lakeshoreData.print("\":\"");
-      for (int i = 0; i < 7; i++) {
-        char lakeshore;
-        if ((lakeshore = Serial2.read())==',') {
-          lakeshore = Serial2.read();
-        }
-        lakeshoreData.write(lakeshore);
-      }
-      if (z < 7){
-        lakeshoreData.print("\",");
-      }else{
-        lakeshoreData.print("\"");
-      }
-      ++j;
-      ++z;
-    }
-    lakeshoreData.print("}");
-
-  }
-  lakeshoreData.close();
+void webServer(){
   delay(2);
   // wait for a new client:
 
@@ -141,7 +274,7 @@ void loop() {
             Serial.println("Mande el HTML");
             // send a standard http response header
             client.println("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection:close");  // the connection will be closed after completion of the response
-            //client.println("Refresh: 15");  // refresh the page automatically every 5 sec
+            client.println("Refresh: 10");  // refresh the page automatically every 5 sec
             client.println();
             //Enviar pagina WebServer
             File webFile = SD.open("lineas/index.htm");
@@ -171,6 +304,42 @@ void loop() {
             }
             break;
           }
+          if(clientRequest.indexOf("/datos2.json") > 0 && currentLineIsBlank && d== '\n'){
+            Serial.println("Mande el json");
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: application/json");
+            client.println("Connection: close");
+            client.println();
+            File webFile = SD.open("lake2.jso",FILE_READ);
+            if(webFile){
+              while(webFile.available()){
+                client.write(webFile.read());
+              }
+              client.println("]}");
+              client.println();
+
+              webFile.close();
+            }
+            break;
+          }
+          if(clientRequest.indexOf("/datos3.json") > 0 && currentLineIsBlank && d== '\n'){
+            Serial.println("Mande el json");
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: application/json");
+            client.println("Connection: close");
+            client.println();
+            File webFile = SD.open("lake3.jso",FILE_READ);
+            if(webFile){
+              while(webFile.available()){
+                client.write(webFile.read());
+              }
+              client.println("]}");
+              client.println();
+
+              webFile.close();
+            }
+            break;
+          }
           if (d == '\n') {
             // you're starting a new line
             currentLineIsBlank = true;
@@ -186,5 +355,11 @@ void loop() {
       client.stop();
     }
   }
+}
+
+void loop() {
+
+webServer();
+
 
 }
