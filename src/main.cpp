@@ -3,6 +3,7 @@
 #include <Ethernet.h>
 #include <SD.h>
 #include <TimerOne.h>
+#include <MemoryFree.h>
 
 
 // telnet defaults to port 23
@@ -73,6 +74,7 @@ void mediciones(int canal){
       Serial2.write("KRDG?\r\n");
       Serial2.println();
 
+
         if (!SD.exists("lake.jso")) {
           File paraComa = SD.open("lake.jso",FILE_WRITE);
           paraComa.println("{\"data\":[");
@@ -85,6 +87,8 @@ void mediciones(int canal){
         }
         if(Serial2.available()){
           puede2 = true;
+        }else {
+          puede2 = false;
         }
         File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
         int j = 1, z = 0;
@@ -93,7 +97,7 @@ void mediciones(int canal){
           delay(2);
 
           lakeshoreData.print("{");
-          lakeshoreData.print("\"time\":\"");
+          lakeshoreData.print("\"secs\":\"");
           lakeshoreData.print(secs);
           lakeshoreData.print("\",");
           secs += 5;
@@ -109,6 +113,11 @@ void mediciones(int canal){
               }
               lakeshoreData.write(lakeshore);
             }
+            /*char lakeshore;
+            String temp = "";
+            while((lakeshore = Serial2.read())!= ','){
+              temp += lakeshore;
+            }*/
             if (z < 7){
               lakeshoreData.print("\",");
             }else{
@@ -183,11 +192,11 @@ void mediciones(int canal){
     default:
       Serial.write("Uys algo fui mal.");
   }
+  Serial.print("FreeMemory() = ");
+  Serial.println(freeMemory());
 }
 
 void interrupcion(){
-  Serial.println("Entro en la interrupcion");
-  Serial.println();
   mediciones(2);
 
 }
@@ -218,7 +227,7 @@ void setup() {
    }
    secs = 0;
 
-   Timer1.initialize(5000000);
+   Timer1.initialize(2000000);
    Timer1.attachInterrupt(interrupcion);
   // You can use Ethernet.init(pin) to configure the CS pin
   //Ethernet.init(10);  // Most Arduino shields
@@ -252,7 +261,7 @@ void webServer(){
   delay(2);
   // wait for a new client:
 
-
+  noInterrupts();
   for(int i= 0; i < 2; i++){
     EthernetClient client = server.available();
     if (client) {
@@ -263,18 +272,18 @@ void webServer(){
           char d;
           while(client.available()){
             d = client.read();
-            Serial.write(d);
             clientRequest += d;
           }
           // if you've gotten to the end of the line (received a newline
           // character) and the line is blank, the http request has ended,
           // so you can send a reply
-
+          Serial.print("FreeMemory= ");
+          Serial.println(freeMemory());
           if (d == '\n' && currentLineIsBlank && clientRequest.indexOf("/ HTTP/1.1")>0) {
             Serial.println("Mande el HTML");
             // send a standard http response header
             client.println("HTTP/1.1 200 OK\nContent-Type: text/html\nConnection:close");  // the connection will be closed after completion of the response
-            client.println("Refresh: 10");  // refresh the page automatically every 5 sec
+            //client.println("Refresh: 10");  // refresh the page automatically every 5 sec
             client.println();
             //Enviar pagina WebServer
             File webFile = SD.open("lineas/index.htm");
@@ -286,7 +295,7 @@ void webServer(){
             }
             break;
           }
-          if(clientRequest.indexOf("/datos.json") > 0 && currentLineIsBlank && d== '\n'){
+          if(clientRequest.indexOf("/lake.json") > 0 && currentLineIsBlank && d== '\n'){
             Serial.println("Mande el json");
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
@@ -304,7 +313,7 @@ void webServer(){
             }
             break;
           }
-          if(clientRequest.indexOf("/datos2.json") > 0 && currentLineIsBlank && d== '\n'){
+          if(clientRequest.indexOf("/lake2.json") > 0 && currentLineIsBlank && d== '\n'){
             Serial.println("Mande el json");
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
@@ -322,7 +331,7 @@ void webServer(){
             }
             break;
           }
-          if(clientRequest.indexOf("/datos3.json") > 0 && currentLineIsBlank && d== '\n'){
+          if(clientRequest.indexOf("/lake3.json") > 0 && currentLineIsBlank && d== '\n'){
             Serial.println("Mande el json");
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
@@ -355,11 +364,19 @@ void webServer(){
       client.stop();
     }
   }
+  interrupts();
 }
 
 void loop() {
+if(secs%50 == 0 && secs != 0){
+  Serial2.end();
+  Serial.println("Cerro la conexion");
+  Serial2.begin(9600,SERIAL_7O1);
+  secs+=5;
+}
 
 webServer();
+
 
 
 }
