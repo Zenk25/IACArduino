@@ -262,4 +262,5 @@ void mediciones(int canal){
   }
   Serial.print("FreeMemory() = ");
   Serial.println(freeMemory());
-}*/
+}
+*/
