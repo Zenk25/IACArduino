@@ -36,10 +36,9 @@ void mediciones(int canal){
           }
           ms.Target(temp[i]);
 
-          char result = ms.Match("[+-][0-9]*%.[0-9]*", 0);
+          char result = ms.Match("^[+-][0-9]*[%.][0-9]*", 0);
           if (result == REGEXP_MATCHED){
             aux++;
-          }else if (result == REGEXP_NOMATCH){
           }
         }
         if(aux == 8){
