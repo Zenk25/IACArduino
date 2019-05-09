@@ -299,7 +299,7 @@ void setup() {
    }
    secs = 0;
 
-   Timer1.initialize(2000000);
+   Timer1.initialize(30000000);
    Timer1.attachInterrupt(interrupcion);
   // You can use Ethernet.init(pin) to configure the CS pin
   //Ethernet.init(10);  // Most Arduino shields
@@ -354,7 +354,7 @@ void webServer(){
             client.println("Connection:close");
             client.println();
             //Enviar pagina WebServer
-            client.println("<!DOCTYPE html> <html> <head> <meta charset= \"utf-8\"></meta> <meta name =\"viewport\" content=\"width=device-width,initial-scale=1.0\"></meta> <link rel=\"stylesheet\" href=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.css\"></link> <script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.min.js\"></script> <link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css\" integrity=\"sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T\" crossorigin=\"anonymous\"></link> <title>Arduino SD, Grafica de lineas</title> </head> <body> <script> var chart; $.getJSON(\"lineas/lake.json\", function (json) { var data = json.data; chart = Morris.Line({ element: 'myfirstchart', data: data, xkey: 'secs', xLabels: 'Segundos', ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], resize: true, pointSize: 0, hideHover : true, smooth: false, parseTime: false, xLabelAngle: 45 }); }); function update() { $.getJSON(\"lineas/lake.json\", function (json){ chart.setData(json.data); }) }; setInterval(update, 15000); </script> <div class=\"container\"> <h1>Gráficas</h1> <div class=\"row\"> <div class=\"col-md-12\"> <h2>Gráfica de línea</h2> <div id=\"myfirstchart\"></div> </div> </div> </div> </body> </html>");
+            client.println("<!DOCTYPE html> <html> <head> <meta charset= \"utf-8\"></meta> <meta name =\"viewport\" content=\"width=device-width,initial-scale=1.0\"></meta> <link rel=\"stylesheet\" href=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.css\"></link> <script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.min.js\"></script> <link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css\" integrity=\"sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T\" crossorigin=\"anonymous\"></link> <title>Arduino SD, Grafica de lineas</title> </head> <body> <script> var chart; $.getJSON(\"lineas/lake.json\", function (json) { var data = json.data; chart = Morris.Line({ element: 'myfirstchart', data: data, xkey: 'secs', xLabels: 'Segundos', ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], resize: true, pointSize: 0, hideHover : true, smooth: false, parseTime: false, xLabelAngle: 45 }); }); function update() { $.getJSON(\"lineas/lake.json\", function (json){ chart.setData(json.data); }) }; setInterval(update, 60000); </script> <div class=\"container\"> <h1>Gráficas</h1> <div class=\"row\"> <div class=\"col-md-12\"> <h2>Gráfica de línea</h2> <div id=\"myfirstchart\"></div> </div> </div> </div> </body> </html>");
             /*File webFile = SD.open("lineas/index.htm");
             if(webFile){
               while(webFile.available()){
@@ -376,6 +376,7 @@ void webServer(){
             File webFile = SD.open("lake.jso",FILE_READ);
             if(webFile){
               while(webFile.available()){
+                //Añadir este patron de comprobacion aqui [\d\w"}{:+.,\n]
                 client.write(webFile.read());
               }
               client.println("]}");
@@ -443,8 +444,10 @@ void webServer(){
 void loop() {
 if(secs%50 == 0 && secs != 0){
   Serial1.end();
+  SD.end();
   Serial.println("Cerro la conexion");
   Serial1.begin(9600,SERIAL_7O1);
+  SD.begin(4);
   secs+=5;
   stop = false;
 }

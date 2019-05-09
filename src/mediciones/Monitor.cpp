@@ -5,6 +5,25 @@
 #include <TimerOne.h>
 #include <MemoryFree.h>
 #include <Regexp.h>
+
+using namespace std;
+
+class Monitor {
+   private:
+      // Datos miembro de la clase "pareja"
+      int a, b;
+   public:
+      // Funciones miembro de la clase "pareja"
+      void Lee(int &a2, int &b2);
+      void Guarda(int a2, int b2) {
+         a = a2;
+         b = b2;
+      }
+};
+
+void pareja::Lee(int &a2, int &b2) {
+   a2 = a;
+ }
 /*
 void medicionCanal1(int canales []){
   //canales = {1,2,4,5};
