@@ -35,7 +35,8 @@ char* Channel::leer() {
       Serial1.write("\r\n");
       Serial1.println();
       delay(2);
-
+      //Esta sección recibe el valor de la temperatura y la devuelve como un
+      //array de chars.
       if(Serial1.available()){
         int z= 0;
         char lakeshore;
@@ -58,7 +59,8 @@ char* Channel::leer() {
       Serial2.write("\r\n");
       Serial2.println();
       delay(2);
-
+      //Esta sección recibe el valor de la temperatura y la devuelve como un
+      //array de chars.
       if(Serial2.available()){
         int z= 0;
         char lakeshore;
@@ -81,7 +83,8 @@ char* Channel::leer() {
       Serial3.write("\r\n");
       Serial3.println();
       delay(2);
-
+      //Esta sección recibe el valor de la temperatura y la devuelve como un
+      //array de chars.
       if(Serial3.available()){
         int z= 0;
         char lakeshore;
