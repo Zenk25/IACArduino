@@ -8,7 +8,7 @@
 #include "Channel.h"
 #include "Monitor.h"
 
-Monitor::Monitor(){
+Monitor::Monitor(Channel* canales){
 
 }
 
@@ -19,14 +19,16 @@ void Monitor::setCanales(int numCanales[]){
 
 char* Monitor::getCanales(){
 
+  return {'a','b','c'};
 }
 
 boolean Monitor::regexComparator(char temp[]){
 
+  return false;
 }
 
 String Monitor::tempsToJson(boolean comprobado){
-
+  return "hola";
 }
 
 String Monitor::horaFecha(){
@@ -66,7 +68,7 @@ String Monitor::horaFecha(){
     lakeshoreData.print(epoch % 60); // print the second
     //Añadir fecha a la hora mostrada.
     Ethernet.maintain();
-
+    return "Hola";
 }
 
 void Monitor::sendNTPpacket(const char* address){
