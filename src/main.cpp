@@ -1,4 +1,4 @@
-#include <Arduino.h>
+/*#include <Arduino.h>
 #include <Ethernet.h>
 #include <SPI.h>
 #include <Regexp.h>
@@ -37,17 +37,9 @@ void loop() {
   Channel prueba(1,1),prueba2(2,1),prueba3(3,1),prueba4(4,1),prueba5(5,1),prueba6(6,1),prueba7(7,1),prueba8(8,1);
   Serial.print("\nFreeMemory() = ");
   Serial.println(freeMemory());
-  /*int numCanal = 1;
-  Serial2.write("KRDG? ");
-  Serial2.print(numCanal);
-  Serial2.write("\r\n");
-  Serial2.println();
-  delay(2);
-  Serial.write("\n");
-  while(Serial2.available()){
-    Serial.write(Serial2.read());
-  }*/
 
+  //Notas: Este código es de prueba y sirve para conseguir que se creen 8 canales
+  //que irán mas tarde en un monitor y ver si pueden mantenerse en memoria sin problema.
     MatchState ms;
     char* temp;
     temp= prueba.leer();
@@ -115,7 +107,7 @@ void loop() {
         Serial.write(temp);
       }
       delay(1000);
-      
+
     Serial.print("\nFreeMemory() = ");
     Serial.println(freeMemory());
-}
+}*/

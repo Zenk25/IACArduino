@@ -1,4 +1,4 @@
-/*#include <Arduino.h>
+#include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
@@ -11,6 +11,13 @@
 EthernetServer server(80);
 int secs;
 boolean puede = false, puede2= false, puede3= false, stop = false, stop2 = false, stop3 = false;
+
+unsigned int localPort = 8888;       // local port to listen for UDP packets
+// A UDP instance to let us send and receive packets over UDP
+EthernetUDP Udp;
+
+
+
 
 void mediciones(int canal){
   switch(canal){
@@ -60,7 +67,41 @@ void mediciones(int canal){
         if(stop){
           lakeshoreData.print("{");
           lakeshoreData.print("\"secs\":\"");
-          lakeshoreData.print(secs);
+          sendNTPpacket(timeServer); // send an NTP packet to a time server
+
+          // wait to see if a reply is available
+          while(!Udp.parsePacket()){
+            delay(1);
+          }
+          Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
+
+          // the timestamp starts at byte 40 of the received packet and is four bytes,
+          // or two words, long. First, extract the two words:
+
+          unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+          unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
+          // combine the four bytes (two words) into a long integer
+          // this is NTP time (seconds since Jan 1 1900):
+          unsigned long secsSince1900 = highWord << 16 | lowWord;
+          // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
+          const unsigned long seventyYears = 2208988800UL;
+          // subtract seventy years:
+          unsigned long epoch = secsSince1900 - seventyYears;
+          lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+          lakeshoreData.print(':');
+          if (((epoch % 3600) / 60) < 10) {
+            // In the first 10 minutes of each hour, we'll want a leading '0'
+            lakeshoreData.print('0');
+          }
+          lakeshoreData.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+          lakeshoreData.print(':');
+          if ((epoch % 60) < 10) {
+            // In the first 10 seconds of each minute, we'll want a leading '0'
+            lakeshoreData.print('0');
+          }
+          lakeshoreData.print(epoch % 60); // print the second
+          //Añadir fecha a la hora mostrada.
+          Ethernet.maintain();
           lakeshoreData.print("\",");
         }
         secs += 5;
@@ -284,9 +325,10 @@ void setup() {
        return;    // init failed
    }
    // check for index.htm file
-   if (!SD.exists("lineas/index.htm")) {
+   /*if (!SD.exists("lineas/index.htm")) {
+     Serial.write("NANI");
        return;  // can't find index file
-   }
+   }*/
 
    if(SD.exists("lake.jso")){
      SD.remove("lake.jso");
@@ -323,6 +365,7 @@ void setup() {
   }
   Serial.print(Ethernet.localIP());
   server.begin();
+  Udp.begin(localPort);
 }
 
 
@@ -361,7 +404,7 @@ void webServer(){
                 client.write(webFile.read());
               }
             webFile.close();
-          }*//*
+          }*/
             interrupts();
             break;
           }
@@ -457,4 +500,3 @@ webServer();
 
 
 }
-*/
