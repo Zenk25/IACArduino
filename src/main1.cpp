@@ -13,11 +13,38 @@ int secs;
 boolean puede = false, puede2= false, puede3= false, stop = false, stop2 = false, stop3 = false;
 
 unsigned int localPort = 8888;       // local port to listen for UDP packets
+
+const char timeServer[] = "1.europe.pool.ntp.org"; // time.nist.gov NTP server
+
+const int NTP_PACKET_SIZE = 48; // NTP time stamp is in the first 48 bytes of the message
+
+byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets
+
 // A UDP instance to let us send and receive packets over UDP
 EthernetUDP Udp;
 
 
+void sendNTPpacket(const char* address){
+    // set all bytes in the buffer to 0
+    memset(packetBuffer, 0, NTP_PACKET_SIZE);
+    // Initialize values needed to form NTP request
+    // (see URL above for details on the packets)
+    packetBuffer[0] = 0b11100011;   // LI, Version, Mode
+    packetBuffer[1] = 0;     // Stratum, or type of clock
+    packetBuffer[2] = 6;     // Polling Interval
+    packetBuffer[3] = 0xEC;  // Peer Clock Precision
+    // 8 bytes of zero for Root Delay & Root Dispersion
+    packetBuffer[12]  = 49;
+    packetBuffer[13]  = 0x4E;
+    packetBuffer[14]  = 49;
+    packetBuffer[15]  = 52;
 
+    // all NTP fields have been given values, now
+    // you can send a packet requesting a timestamp:
+    Udp.beginPacket(address, 123); // NTP requests are to port 123
+    Udp.write(packetBuffer, NTP_PACKET_SIZE);
+    Udp.endPacket();
+}
 
 void mediciones(int canal){
   switch(canal){
@@ -397,7 +424,8 @@ void webServer(){
             client.println("Connection:close");
             client.println();
             //Enviar pagina WebServer
-            client.println("<!DOCTYPE html> <html> <head> <meta charset= \"utf-8\"></meta> <meta name =\"viewport\" content=\"width=device-width,initial-scale=1.0\"></meta> <link rel=\"stylesheet\" href=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.css\"></link> <script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.min.js\"></script> <link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css\" integrity=\"sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T\" crossorigin=\"anonymous\"></link> <title>Arduino SD, Grafica de lineas</title> </head> <body> <script> var chart; $.getJSON(\"lineas/lake.json\", function (json) { var data = json.data; chart = Morris.Line({ element: 'myfirstchart', data: data, xkey: 'secs', xLabels: 'Segundos', ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], resize: true, pointSize: 0, hideHover : true, smooth: false, parseTime: false, xLabelAngle: 45 }); }); function update() { $.getJSON(\"lineas/lake.json\", function (json){ chart.setData(json.data); }) }; setInterval(update, 60000); </script> <div class=\"container\"> <h1>Gráficas</h1> <div class=\"row\"> <div class=\"col-md-12\"> <h2>Gráfica de línea</h2> <div id=\"myfirstchart\"></div> </div> </div> </div> </body> </html>");
+            client.print("<!DOCTYPE html> <html> <head> <meta charset= \"utf-8\"></meta> <meta name =\"viewport\" content=\"width=device-width,initial-scale=1.0\"></meta> <link rel=\"stylesheet\" href=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.css\"></link> <script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.min.js\"></script> <link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css\" integrity=\"sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T\" crossorigin=\"anonymous\"></link> <title>Arduino SD, Grafica de lineas</title> </head> <body> <script> var chart; $.getJSON(\"lake.json\", function (json) { var data = json.data; chart = Morris.Line({ element: 'primerGrafico', data: data, xkey: 'secs', xLabels: 'Segundos', // A list of names of data record attributes that contain y-values. //Los 8 canales irán en las y. ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], // Labels for the ykeys -- will be displayed when you hover over the // chart. labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], resize: true, pointSize: 0, hideHover : true, smooth: false, parseTime: false, xLabelAngle: 45 }); }); var chart2; $.getJSON(\"lake2.json\", function (json) { var data = json.data; chart = Morris.Line({ element: 'segundoGrafico', data: data, xkey: 'secs', xLabels: 'Segundos', // A list of names of data record attributes that contain y-values. //Los 8 canales irán en las y. ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], // Labels for the ykeys -- will be displayed when you hover over the // chart. labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'],");
+            client.println(" resize: true, pointSize: 0, hideHover : true, smooth: false, parseTime: false, xLabelAngle: 45 }); }); var chart3; $.getJSON(\"lake3.json\", function (json) { var data = json.data; chart = Morris.Line({ element: 'TercerGrafico', data: data, xkey: 'secs', xLabels: 'Segundos', // A list of names of data record attributes that contain y-values. //Los 8 canales irán en las y. ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], // Labels for the ykeys -- will be displayed when you hover over the // chart. labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], resize: true, pointSize: 0, hideHover : true, smooth: false, parseTime: false, xLabelAngle: 45 }); }); function update() { $.getJSON(\"lake.json\", function (json){ chart.setData(json.data); }) }; function update2() { $.getJSON(\"lake2.json\", function (json){ chart.setData(json.data); }) }; function update3() { $.getJSON(\"lake3.json\", function (json){ chart.setData(json.data); }) }; setInterval(update, 60000); setInterval(update2, 60000); setInterval(update3, 60000); </script> <div class=\"container\"> <h1>Gráficas</h1> <div class=\"row\"> <div class=\"col-md-12\"> <h2>Primer Grupo</h2> <div id=\"primerGrafico\"></div> </div> </div> <div class=\"row\"> <div class=\"col-md-12\"> <h2>Segundo Grupo</h2> <div id=\"segundoGrafico\"></div> </div> </div> <div class=\"row\"> <div class=\"col-md-12\"> <h2>Tercer Grupo</h2> <div id=\"tercerGrafico\"></div> </div> </div> </div> </body> </html>");
             /*File webFile = SD.open("lineas/index.htm");
             if(webFile){
               while(webFile.available()){
