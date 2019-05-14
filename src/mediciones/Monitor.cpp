@@ -4,22 +4,83 @@
 #include <SD.h>
 #include <TimerOne.h>
 #include <MemoryFree.h>
+#include <Array.h>
 #include <Regexp.h>
 #include "Channel.h"
 #include "Monitor.h"
 
-Monitor::Monitor(Channel* canales){
+using namespace std;
 
+Monitor::Monitor(Array<int> numCanales,int port){
+
+    Channel final[numCanales.size()];
+    for (int i = 0; i < numCanales.size(); i++) {
+
+      switch(numCanales[i]){
+        case 1:
+        {
+          Channel channel1(numCanales[i], port);
+          final[i] = channel1;
+          break;
+        }
+        case 2:
+        {
+          Channel channel2(numCanales[i], port);
+          final[i] = channel2;
+          break;
+        }
+        case 3:
+        {
+          Channel channel3(numCanales[i], port);
+          final[i] = channel3;
+          break;
+        }
+        case 4:
+        {
+          Channel channel4(numCanales[i], port);
+          final[i] = channel4;
+          break;
+        }
+        case 5:
+        {
+          Channel channel5(numCanales[i], port);
+          final[i] = channel5;
+          break;
+        }
+        case 6:
+        {
+          Channel channel6(numCanales[i], port);
+          final[i] = channel6;
+          break;
+        }
+        case 7:
+        {
+          Channel channel7(numCanales[i], port);
+          final[i] = channel7;
+          break;
+        }
+        case 8:
+        {
+          Channel channel8(numCanales[i], port);
+          final[i] = channel8;
+          break;
+        }
+      }
+    }
+    setCanales(final, numCanales.size());
 }
 
 
-void Monitor::setCanales(int numCanales[]){
+void Monitor::setCanales(Channel* aux, int length){
 
+  for (int i = 0; i < length; i++) {
+    Monitor::canales[i] = aux[i];
+  }
 }
 
 char* Monitor::getCanales(){
-
-  return {'a','b','c'};
+  char mira[3] = {'a','b','c'};
+  return mira;
 }
 
 boolean Monitor::regexComparator(char temp[]){
@@ -32,7 +93,7 @@ String Monitor::tempsToJson(boolean comprobado){
 }
 
 String Monitor::horaFecha(){
-
+    String fecha;
     sendNTPpacket(timeServer); // send an NTP packet to a time server
 
     // wait to see if a reply is available
@@ -53,22 +114,22 @@ String Monitor::horaFecha(){
     const unsigned long seventyYears = 2208988800UL;
     // subtract seventy years:
     unsigned long epoch = secsSince1900 - seventyYears;
-    lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
-    lakeshoreData.print(':');
+    fecha = (((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+    fecha+=':';
     if (((epoch % 3600) / 60) < 10) {
       // In the first 10 minutes of each hour, we'll want a leading '0'
-      lakeshoreData.print('0');
+      fecha+='0';
     }
-    lakeshoreData.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
-    lakeshoreData.print(':');
+    fecha+=((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+    fecha+=':';
     if ((epoch % 60) < 10) {
       // In the first 10 seconds of each minute, we'll want a leading '0'
-      lakeshoreData.print('0');
+      fecha+=('0');
     }
-    lakeshoreData.print(epoch % 60); // print the second
+    fecha+=(epoch % 60); // print the second
     //Añadir fecha a la hora mostrada.
     Ethernet.maintain();
-    return "Hola";
+    return fecha;
 }
 
 void Monitor::sendNTPpacket(const char* address){

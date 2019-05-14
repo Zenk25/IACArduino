@@ -8,7 +8,8 @@ class Channel {
       int port;
 
    public:
-     //Constructor
+     //Constructores
+      Channel();
       Channel(int numCanal2,int port2);
       // Funcion que devuelve el codigo para la lectura
       void codigoPeticion();
