@@ -304,7 +304,7 @@ EthernetUDP Udp;
 
 void interrupcion(){
   //mediciones(1);
-  Channel prueba(1,1),prueba2(2,1),prueba3(3,1),prueba4(4,1);
+  Channel prueba(1,1),prueba2(2,1),prueba3(3,1),prueba4(4,1),prueba5(5,1),prueba6(6,1),prueba7(7,1),prueba8(8,1);
   //Notas: Este código es de prueba y sirve para conseguir que se creen 8 canales
   //que irán mas tarde en un monitor y ver si pueden mantenerse en memoria sin problema.
     MatchState ms;
@@ -328,7 +328,72 @@ void interrupcion(){
        if (result == REGEXP_MATCHED){
          Serial.write(temp);
        }
-
+    }
+    if ( (millis()-oldtime) > 500) {
+       oldtime = millis();
+       temp= prueba3.leer();
+       Serial.print("\nFreeMemory() = ");
+       Serial.println(freeMemory());
+       ms.Target(temp);
+       result = ms.Match("[+-][0-9]*[.][0-9]*");
+       if (result == REGEXP_MATCHED){
+         Serial.write(temp);
+       }
+    }
+    if ( (millis()-oldtime) > 500) {
+       oldtime = millis();
+       temp= prueba4.leer();
+       Serial.print("\nFreeMemory() = ");
+       Serial.println(freeMemory());
+       ms.Target(temp);
+       result = ms.Match("[+-][0-9]*[.][0-9]*");
+       if (result == REGEXP_MATCHED){
+         Serial.write(temp);
+       }
+    }
+    if ( (millis()-oldtime) > 500) {
+       oldtime = millis();
+       temp= prueba5.leer();
+       Serial.print("\nFreeMemory() = ");
+       Serial.println(freeMemory());
+       ms.Target(temp);
+       result = ms.Match("[+-][0-9]*[.][0-9]*");
+       if (result == REGEXP_MATCHED){
+         Serial.write(temp);
+       }
+    }
+    if ( (millis()-oldtime) > 500) {
+       oldtime = millis();
+       temp= prueba6.leer();
+       Serial.print("\nFreeMemory() = ");
+       Serial.println(freeMemory());
+       ms.Target(temp);
+       result = ms.Match("[+-][0-9]*[.][0-9]*");
+       if (result == REGEXP_MATCHED){
+         Serial.write(temp);
+       }
+    }
+    if ( (millis()-oldtime) > 500) {
+       oldtime = millis();
+       temp= prueba7.leer();
+       Serial.print("\nFreeMemory() = ");
+       Serial.println(freeMemory());
+       ms.Target(temp);
+       result = ms.Match("[+-][0-9]*[.][0-9]*");
+       if (result == REGEXP_MATCHED){
+         Serial.write(temp);
+       }
+    }
+    if ( (millis()-oldtime) > 500) {
+       oldtime = millis();
+       temp= prueba8.leer();
+       Serial.print("\nFreeMemory() = ");
+       Serial.println(freeMemory());
+       ms.Target(temp);
+       result = ms.Match("[+-][0-9]*[.][0-9]*");
+       if (result == REGEXP_MATCHED){
+         Serial.write(temp);
+       }
     }
 
 
