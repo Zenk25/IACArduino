@@ -1,14 +1,19 @@
+#include "Channel.h"
+#include <Array.h>
+
 using namespace std;
 const int NTP_PACKET_SIZE = 48;
 
 class Monitor {
    private:
       // Datos miembro de la clase Monitor
-      int numCanales,numMonitor;
+      int numCanales[];
+      int numMonitor;
+      int canalesLength;
+      char sda[1]= {'1'};
+      Array<char> temperaturas = Array<char>(sda, 1);
       Channel canales[];
-      String nombreCanales[];
-      unsigned int localPort = 8888;       // local port to listen for UDP packets
-      const char timeServer[] = "1.europe.pool.ntp.org"; // time.nist.gov NTP server
+      unsigned int localPort = 8888;       // local port to listen for UDP packetss
        // NTP time stamp is in the first 48 bytes of the message
       byte packetBuffer[NTP_PACKET_SIZE];
       //  byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing packets
@@ -18,7 +23,9 @@ class Monitor {
       // Funciones miembro de la clase Monitor
       Monitor(Array<int> numCanales, int port);
       void setCanales(Channel* aux, int length);
-      char* getCanales();
+      Channel getCanal(int numCanal);
+      Array<char> getTempCanales();
+      void setTempCanales();
       boolean regexComparator(char temp[]);
       String tempsToJson(boolean comprobado);
       String horaFecha();

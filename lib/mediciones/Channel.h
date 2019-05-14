@@ -1,5 +1,5 @@
 //Clase canal, se encargará de guardar la medición del canal, correspondiente.
-class Channel {
+class Channel{
    private:
       // Datos de la medición.
       char valor[7];
