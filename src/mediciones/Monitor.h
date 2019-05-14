@@ -16,8 +16,8 @@ class Monitor {
 
    public:
       // Funciones miembro de la clase Monitor
-      Monitor(Channel* canales);
-      void setCanales(int numCanales[]);
+      Monitor(Array<int> numCanales, int port);
+      void setCanales(Channel* aux, int length);
       char* getCanales();
       boolean regexComparator(char temp[]);
       String tempsToJson(boolean comprobado);

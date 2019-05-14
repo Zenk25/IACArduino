@@ -9,6 +9,11 @@
 
 char nulo[7] = {'x','x','x','x','x','x','x'};
 
+Channel::Channel(){
+
+}
+
+
 Channel::Channel(int numCanal2, int port2){
 
   setNumCanal(numCanal2);
