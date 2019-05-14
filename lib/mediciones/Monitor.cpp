@@ -1,18 +1,13 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
-#include <SD.h>
-#include <TimerOne.h>
-#include <MemoryFree.h>
 #include <Array.h>
 #include <Regexp.h>
-#include "Channel.h"
 #include "Monitor.h"
 
 using namespace std;
-
+//Constructor de la clase monitor
 Monitor::Monitor(Array<int> numCanales,int port){
-
     Channel final[numCanales.size()];
     for (int i = 0; i < numCanales.size(); i++) {
 
@@ -70,31 +65,65 @@ Monitor::Monitor(Array<int> numCanales,int port){
     setCanales(final, numCanales.size());
 }
 
-
+//Asignarás los canales
 void Monitor::setCanales(Channel* aux, int length){
 
   for (int i = 0; i < length; i++) {
     Monitor::canales[i] = aux[i];
   }
 }
-
-char* Monitor::getCanales(){
-  char mira[3] = {'a','b','c'};
-  return mira;
+//Devolverá los canales
+Channel Monitor::getCanal(int numCanal){
+  return Monitor::canales[numCanal-1];
 }
 
-boolean Monitor::regexComparator(char temp[]){
+Array<char> Monitor::getTempCanales(){
+    return temperaturas;
+}
 
-  return false;
+void Monitor::setTempCanales(){
+  char aux[canalesLength][7];
+  for (int i = 0; i < canalesLength; i++) {
+    for (int j = 0; j < 7; j++) {
+      aux[i][j] = Monitor::canales[i].leer()[j];
+    }
+  }
+  temperaturas = Array<char>(*aux,canalesLength);
+}
+
+
+boolean Monitor::regexComparator(char temp[]){
+  MatchState ms;
+  ms.Target(temp);
+  char result = ms.Match("[+-][0-9]*[.][0-9]*");
+  if (result == REGEXP_MATCHED){
+    return true;
+  }else{
+    return false;
+  }
 }
 
 String Monitor::tempsToJson(boolean comprobado){
-  return "hola";
+  String Json ="";
+  Json += "{secs = \"";
+  Json += Monitor::horaFecha();
+  Json += ",";
+  for (int i = 0; i < temperaturas.size(); i++) {
+    Json += "\"Temp";
+    Json += i;
+    Json += "\"= \"";
+    Json += temperaturas[i];
+    Json += "\"";
+    if(i<temperaturas.size()){
+      Json += ",";
+    }
+  }
+  return Json;
 }
 
 String Monitor::horaFecha(){
     String fecha;
-    sendNTPpacket(timeServer); // send an NTP packet to a time server
+    sendNTPpacket("1.europe.pool.ntp.org"); // send an NTP packet to a time server
 
     // wait to see if a reply is available
     while(!Udp.parsePacket()){
