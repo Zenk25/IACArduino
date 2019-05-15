@@ -1,4 +1,4 @@
-#include <Arduino.h>
+/*#include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
 #include <Array.h>
@@ -182,3 +182,4 @@ void Monitor::sendNTPpacket(const char* address){
     Udp.write(packetBuffer, NTP_PACKET_SIZE);
     Udp.endPacket();
 }
+*/

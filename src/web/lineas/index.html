@@ -11,11 +11,20 @@
       <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous"></link>
 
       <title>Arduino SD, Grafica de lineas</title>
+      <style>
+      .btn{
+        background-color: limegreen;
+      }
+      body{
+        margin-bottom: 10px;
+      }
+
+      </style>
     </head>
     <body>
       <script>
       var chart;
-      $.getJSON("lake.json", function (json) {
+      $.getJSON("datos.json", function (json) {
         var data = json.data;
         chart = Morris.Line({
             element: 'primerGrafico',
@@ -36,8 +45,8 @@
             xLabelAngle: 45
           });
       });
-      var chart;
-      $.getJSON("lake2.json", function (json) {
+      var chart2;
+      $.getJSON("datos.json", function (json) {
         var data = json.data;
         chart = Morris.Line({
             element: 'segundoGrafico',
@@ -58,11 +67,11 @@
             xLabelAngle: 45
           });
       });
-      var chart;
-      $.getJSON("lake3.json", function (json) {
+      var chart3;
+      $.getJSON("datos.json", function (json) {
         var data = json.data;
         chart = Morris.Line({
-            element: 'TercerGrafico',
+            element: 'tercerGrafico',
             data: data,
             xkey: 'secs',
             xLabels: 'Segundos',
@@ -80,24 +89,27 @@
             xLabelAngle: 45
           });
       });
+
       function update() {
-        $.getJSON("lake.json", function (json){
+        $.getJSON("datos.json", function (json){
           chart.setData(json.data);
         })
       };
-      function update() {
-        $.getJSON("lake2.json", function (json){
+      function update2() {
+        $.getJSON("datos.json", function (json){
           chart.setData(json.data);
         })
       };
-      function update() {
-        $.getJSON("lake3.json", function (json){
+      function update3() {
+        $.getJSON("datos.json", function (json){
           chart.setData(json.data);
         })
       };
+
+
       setInterval(update, 60000);
-      setInterval(update, 60000);
-      setInterval(update, 60000);
+      setInterval(update2, 60000);
+      setInterval(update3, 60000);
 
       </script>
         <div class="container">
@@ -108,18 +120,27 @@
               <div id="primerGrafico"></div>
             </div>
           </div>
+          <a class = "btn btn-succes" href="datos.json" download="Lake.json">Descargar</a>
+        </div>
+        <div class="container">
+          <h1>Gráficas</h1>
           <div class="row">
             <div class="col-md-12">
               <h2>Segundo Grupo</h2>
               <div id="segundoGrafico"></div>
             </div>
           </div>
+          <a class = "btn btn-succes" href="datos.json" download="Lake.json">Descargar</a>
+        </div>
+        <div class="container">
+          <h1>Gráficas</h1>
           <div class="row">
             <div class="col-md-12">
               <h2>Tercer Grupo</h2>
               <div id="tercerGrafico"></div>
             </div>
           </div>
+          <a class = "btn btn-succes" href="datos.json" download="Lake.json">Descargar</a>
         </div>
 
     </body>
