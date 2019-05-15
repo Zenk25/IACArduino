@@ -2,18 +2,22 @@
 class Channel{
    private:
       // Datos de la medición.
-      char valor[7];
       //Numero del canal actual.
       int numCanal;
       int port;
+      Array<char> valor = Array<char>(sadfaf,7);;
+      char sadfaf[7] = {'x','x','x','x','x','x','x'};
+      Array<char> nulo = Array<char>(sadfaf, 7);
 
    public:
      //Constructores
       Channel();
       Channel(int numCanal2,int port2);
+      ~Channel();
+      void destruir();
       // Funcion que devuelve el codigo para la lectura
       void codigoPeticion();
-      char* leer();
+      Array<char> leer();
       void setNumCanal(int numCanal2);
       void setPort(int port2);
 

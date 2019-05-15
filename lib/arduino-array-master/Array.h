@@ -60,7 +60,7 @@ class Array {
 			}
 			return maxIndex;
 		}
-		
+
 		type getMin(){
 			type min = array[0];
 			for (int i=1; i<arraySize; i++){
@@ -82,7 +82,7 @@ class Array {
 			}
 			return minIndex;
 		}
-		
+
 		type getAverage(){
 			type sum = 0;
 			for (int i=0; i<arraySize; i++){
@@ -90,7 +90,7 @@ class Array {
 			}
 			return (sum/arraySize);
 		}
-		
+
 		// subscript operator for non-const objects returns modifiable lvalue
 		type &operator[]( int index ) {
 			// simple error handling
@@ -101,7 +101,7 @@ class Array {
 			}else{
 				return array[index];
 			}
-		}		
+		}
 		// subscript operator for const objects returns rvalue
 		type operator[]( int index ) const {
 			// simple error handling
@@ -111,7 +111,10 @@ class Array {
 				return array[index];
 			}
 		}
-		
+		void liberar(){
+			delete array;
+		}
+
 	private:
 		type* array;
 		int arraySize;

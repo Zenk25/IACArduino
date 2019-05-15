@@ -1,8 +1,7 @@
-#include "Channel.h"
+/*#include "Channel.h"
 #include <Array.h>
 
 using namespace std;
-const int NTP_PACKET_SIZE = 48;
 
 class Monitor {
    private:
@@ -32,3 +31,4 @@ class Monitor {
       void sendNTPpacket(const char* address);
 
 };
+*/
