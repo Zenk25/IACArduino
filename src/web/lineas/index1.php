@@ -3,25 +3,45 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>Subir archivos al servidor</title>
-<meta name ="author" content ="Norfi Carrodeguas">
-<style type="text/css" media="screen">
-body{font-size:1.2em;}
-</style>
-</head>
 <body>
-<form enctype='multipart/form-data' action='' method='post'>
-<input name='uploadedfile' type='file'><br>
-<input type='submit' value='Subir archivo'>
-</form>
-<?php
-$target_path = "uploads/";
-$target_path = $target_path . basename( $_FILES['uploadedfile']['name']);
-if(move_uploaded_file($_FILES['uploadedfile']['tmp_name'], $target_path))
-{
-echo "<span style='color:green;'". basename( $_FILES['uploadedfile']['name']). " ha sido subido</span><br";
-}else{
-echo "Ha ocurrido un error, trate de nuevo!";
-}
-?>
+  <script>
+  function startUpload() {
+    var fileInput = document.getElementById("fileInput");
+
+    if (fileInput.files.length == 0) {
+        alert("Please choose a file");
+        return;
+    }
+
+    var progressBar = document.getElementById("progressBar");
+    var xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = function(e) {
+        var percentComplete = (e.loaded / e.total) * 100;
+        progressBar.value = percentComplete;
+    };
+
+    xhr.onload = function() {
+        if (xhr.status == 200) {
+            alert("Sucess! Upload completed");
+        } else {
+            alert("Error! Upload failed");
+        }
+    };
+    xhr.onerror = function() {
+        alert("Error! Upload failed. Can not connect to server.");
+    };
+
+    progressBar.value = 0;
+    xhr.open("POST", "ajax-upload", true);
+    xhr.setRequestHeader("Content-Type", fileInput.files[0].type);
+    xhr.send(fileInput.files[0]);
+  }
+</script>
+    <input type="file" id="fileInput"/>
+    <button onclick="startUpload();">Upload</button>
+    <br/>
+    <progress id="progressBar" max="100" value="0"/>
+
 </body>
 </html>

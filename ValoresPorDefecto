@@ -1,0 +1,3 @@
+String subsystem = "CryoMonitor", cicle = "1",responsible = "Pedro Borges Santamaría", objective = "Breve descripción del objetivo de la adquisición", baseDirectory = "Direccion", backupBaseDirectory = "Direccion BackUp", tempPeriod = "30", pressurePeriod = "30";
+//Declaración variables para el Monitor 1, en el setup se inicializarán.
+String port1 = "COM1", magnitude = "temperature", type = "LSXXX", canal11 = "valido1", canal12 = "valido1", canal13 = "valido1", canal14 = "valido1", canal15 = "valido1", canal16 = "valido1", canal17 = "valido1", canal18 = "valido1";
