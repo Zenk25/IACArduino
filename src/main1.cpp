@@ -6,10 +6,19 @@
 #include <MemoryFree.h>
 #include <Regexp.h>
 
-
+//Se podrá poner comprobadores de espacios y demás errores a la hora de crear el config.ini,
+//por ahora no estan implementados.
+//Declaración variables para el Header, en el setup se inicializarán.
+String subsystem = "", cicle = "",responsible = "", objective = "", baseDirectory = "", backupBaseDirectory = "", tempPeriod = "", pressurePeriod = "";
+//Declaración variables para el Monitor 1, en el setup se inicializarán.
+String port1 = "", magnitude = "", type = "";
+const int CANALESSIZE = 8;
+boolean existCanal1[8] = {false, false, false, false,  false,  false,  false,  false};
+String canales1[8] = {"","","","","","","",""};
 // telnet defaults to port 23
 EthernetServer server(80);
 boolean puede = false, puede2= false, puede3= false, stop = false, stop2 = false, stop3 = false;
+int secs = 0;
 
 unsigned int localPort = 8888;
 const int NTP_PACKET_SIZE = 48;
@@ -18,315 +27,34 @@ byte packetBuffer[NTP_PACKET_SIZE];
 
 EthernetUDP Udp;
 
-
+//Esta clase será necesaria para obtener la fecha desde un servidor NTP
 void sendNTPpacket(const char* address){
-    // set all bytes in the buffer to 0
+    // Pone todos los bytes del buffer a 0
     memset(packetBuffer, 0, NTP_PACKET_SIZE);
-    // Initialize values needed to form NTP request
-    // (see URL above for details on the packets)
+    // Inicializa las variables necesarias para un paquete NTP
     packetBuffer[0] = 0b11100011;   // LI, Version, Mode
     packetBuffer[1] = 0;     // Stratum, or type of clock
     packetBuffer[2] = 6;     // Polling Interval
     packetBuffer[3] = 0xEC;  // Peer Clock Precision
-    // 8 bytes of zero for Root Delay & Root Dispersion
+    // 8 bytes a cero para Root Delay & Root Dispersion
     packetBuffer[12]  = 49;
     packetBuffer[13]  = 0x4E;
     packetBuffer[14]  = 49;
     packetBuffer[15]  = 52;
 
-    // all NTP fields have been given values, now
-    // you can send a packet requesting a timestamp:
-    Udp.beginPacket(address, 123); // NTP requests are to port 123
+    // todos los campos del NTP tienen valores, asíque ahora
+    // puedes enviar un mensaje pidiendo la fecha y hora
+    Udp.beginPacket(address, 123); //los pedidos NTP se hacen a través del puerto 123
     Udp.write(packetBuffer, NTP_PACKET_SIZE);
     Udp.endPacket();
 }
 
-void mediciones(int canal){
-  switch(canal){
-    case 1:
-    {
-      int aux = 0;
-      Serial1.write("KRDG?\r\n");
-      Serial1.println();
-      delay(2);
-      char temp [8][7];
-      char lakeshore;
-      int j = 1, z = 0;
-      while(Serial1.available()){
-        MatchState ms;
-        for (int i = 0; i < 8; i++) {
-          z=0;
-          while(z < 7) {
-            if ((lakeshore = Serial1.read())==',') {
-              lakeshore = Serial1.read();
-            }
-            temp[i][z] = lakeshore;
-            z++;
-          }
-          ms.Target(temp[i]);
-
-          char result = ms.Match("^[+-][0-9]*[%.][0-9]*", 0);
-          if (result == REGEXP_MATCHED){
-            aux++;
-          }
-        }
-        if(aux == 8){
-          stop = true;
-        }else{
-          stop = false;
-        }
-      }
-
-      if(SD.exists("lake.jso") && puede && stop){
-       File paraComa = SD.open("lake.jso", FILE_WRITE);
-       paraComa.println(",");
-       paraComa.close();
-      }
-
-
-      File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
-
-        if(stop){
-          lakeshoreData.print("{");
-          lakeshoreData.print("\"secs\":\"");
-          sendNTPpacket(timeServer); // send an NTP packet to a time server
-
-          // wait to see if a reply is available
-          while(!Udp.parsePacket()){
-            delay(1);
-          }
-          Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
-
-          // the timestamp starts at byte 40 of the received packet and is four bytes,
-          // or two words, long. First, extract the two words:
-
-          unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-          unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-          // combine the four bytes (two words) into a long integer
-          // this is NTP time (seconds since Jan 1 1900):
-          unsigned long secsSince1900 = highWord << 16 | lowWord;
-          // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
-          const unsigned long seventyYears = 2208988800UL;
-          // subtract seventy years:
-          unsigned long epoch = secsSince1900 - seventyYears;
-          lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
-          lakeshoreData.print(':');
-          if (((epoch % 3600) / 60) < 10) {
-            // In the first 10 minutes of each hour, we'll want a leading '0'
-            lakeshoreData.print('0');
-          }
-          lakeshoreData.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
-          lakeshoreData.print(':');
-          if ((epoch % 60) < 10) {
-            // In the first 10 seconds of each minute, we'll want a leading '0'
-            lakeshoreData.print('0');
-          }
-          lakeshoreData.print(epoch % 60); // print the second
-          //Añadir fecha a la hora mostrada.
-          Ethernet.maintain();
-          lakeshoreData.print("\",");
-        }
-        secs += 5;
-        z=0;
-        while(z < 8){
-          if(stop){
-            lakeshoreData.print("\"Temp");
-            lakeshoreData.print(j);
-            lakeshoreData.print("\":\"");
-            for (size_t i = 0; i < 7; i++) {
-              lakeshoreData.print(temp[z][i]);
-            }
-          }
-          if(stop){
-            if (z < 7){
-              lakeshoreData.print("\",");
-            }else{
-              lakeshoreData.print("\"");
-            }
-          }
-          ++j;
-          ++z;
-        }
-        if(stop){
-          lakeshoreData.print("}");
-          puede = true;
-        }
-
-        lakeshoreData.close();
-
-      break;
-    }
-    case 2:
-    {
-      int aux = 0;
-      Serial2.write("KRDG?\r\n");
-      Serial2.println();
-      delay(2);
-      char temp [8][7];
-      char lakeshore;
-      int j = 1, z = 0;
-
-      while(Serial2.available()){
-        MatchState ms;
-        for (int i = 0; i < 8; i++) {
-          z=0;
-          while(z < 7) {
-            if ((lakeshore = Serial2.read())==',') {
-              lakeshore = Serial2.read();
-            }
-            temp[i][z] = lakeshore;
-            z++;
-          }
-          ms.Target(temp[i]);
-
-          char result = ms.Match("[+-][0-9]*%.[0-9]*", 0);
-          if (result == REGEXP_MATCHED){
-            aux++;
-          }else if (result == REGEXP_NOMATCH){
-          }
-        }
-        if(aux == 8){
-          stop2 = true;
-        }else{
-          stop2 = false;
-        }
-      }
-
-      if(SD.exists("lake2.jso") && puede2 && stop2){
-       File paraComa = SD.open("lake2.jso", FILE_WRITE);
-       paraComa.println(",");
-       paraComa.close();
-      }
-
-
-      File lakeshoreData = SD.open("lake2.jso",FILE_WRITE);
-
-        if(stop2){
-          lakeshoreData.print("{");
-          lakeshoreData.print("\"secs\":\"");
-          lakeshoreData.print(secs);
-          lakeshoreData.print("\",");
-        }
-        secs += 5;
-        z=0;
-        while(z < 8){
-          if(stop2){
-            lakeshoreData.print("\"Temp");
-            lakeshoreData.print(j);
-            lakeshoreData.print("\":\"");
-            for (size_t i = 0; i < 7; i++) {
-              lakeshoreData.print(temp[z][i]);
-            }
-          }
-          if(stop2){
-            if (z < 7){
-              lakeshoreData.print("\",");
-            }else{
-              lakeshoreData.print("\"");
-            }
-          }
-          ++j;
-          ++z;
-        }
-        if(stop2){
-          lakeshoreData.print("}");
-          puede2 = true;
-        }
-
-        lakeshoreData.close();
-
-      break;
-    }
-    case 3:
-    {
-      int aux = 0;
-      Serial3.write("KRDG?\r\n");
-      Serial3.println();
-      delay(2);
-      char temp [8][7];
-      char lakeshore;
-      int j = 1, z = 0;
-
-      while(Serial3.available()){
-        MatchState ms;
-        for (int i = 0; i < 8; i++) {
-          z=0;
-          while(z < 7) {
-            if ((lakeshore = Serial3.read())==',') {
-              lakeshore = Serial3.read();
-            }
-            temp[i][z] = lakeshore;
-            z++;
-          }
-          ms.Target(temp[i]);
-
-          char result = ms.Match("[+-][0-9]*%.[0-9]*", 0);
-          if (result == REGEXP_MATCHED){
-            aux++;
-          }else if (result == REGEXP_NOMATCH){
-          }
-        }
-        if(aux == 8){
-          stop3 = true;
-        }else{
-          stop3 = false;
-        }
-      }
-
-      if(SD.exists("lake3.jso") && puede3 && stop3){
-       File paraComa = SD.open("lake3.jso", FILE_WRITE);
-       paraComa.println(",");
-       paraComa.close();
-      }
-
-
-      File lakeshoreData = SD.open("lake3.jso",FILE_WRITE);
-
-        if(stop3){
-          lakeshoreData.print("{");
-          lakeshoreData.print("\"secs\":\"");
-          lakeshoreData.print(secs);
-          lakeshoreData.print("\",");
-        }
-        secs += 5;
-        z=0;
-        while(z < 8){
-          if(stop3){
-            lakeshoreData.print("\"Temp");
-            lakeshoreData.print(j);
-            lakeshoreData.print("\":\"");
-            for (size_t i = 0; i < 7; i++) {
-              lakeshoreData.print(temp[z][i]);
-            }
-          }
-          if(stop3){
-            if (z < 7){
-              lakeshoreData.print("\",");
-            }else{
-              lakeshoreData.print("\"");
-            }
-          }
-          ++j;
-          ++z;
-        }
-        if(stop3){
-          lakeshoreData.print("}");
-          puede3 = true;
-        }
-
-        lakeshoreData.close();
-
-      break;
-    }
-    default:
-      Serial.write("Uys algo fui mal.");
-  }
-  Serial.print("FreeMemory() = ");
-  Serial.println(freeMemory());
-}
+//Esta clase se encargará de recoger las mediciones de los canales.
+void mediciones(int puerto);
 
 void interrupcion(){
   mediciones(1);
+  Serial.print(freeMemory());
 
 }
 
@@ -391,6 +119,157 @@ void setup() {
   Serial.print(Ethernet.localIP());
   server.begin();
   Udp.begin(localPort);
+  EthernetClient client = server.available();
+  String canal11 = "valido1", canal12 = "valido1", canal13 = "valido1", canal14 = "valido1", canal15 = "valido1", canal16 = "valido1", canal17 = "valido1", canal18 = "valido1";
+  if (client) {
+    boolean currentLineIsBlank = true;
+    String clientRequest = "";
+
+    while (client.connected()) {
+        char d;
+        while(client.available()){
+          d = client.read();
+          clientRequest += d;
+          if(clientRequest.indexOf("/ajax-upload")>0 && currentLineIsBlank && d== '\n'){
+            if(clientRequest.indexOf("[Header]")>0){
+              int index;
+              if ((index = clientRequest.lastIndexOf("Subsystem= "))>0) {
+                int lastindex = clientRequest.indexOf("\nCicle");
+                subsystem = clientRequest.substring(index, lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("Cicle= "))>0){
+                int lastindex = clientRequest.indexOf("\nResponsible");
+                cicle = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("Responsible= "))>0){
+                int lastindex = clientRequest.indexOf("\nObjective");
+                responsible = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("Objective= "))>0){
+                int lastindex = clientRequest.indexOf("\nBaseDirectory");
+                objective = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("BaseDirectory= "))>0){
+                int lastindex = clientRequest.indexOf("\nbackupBaseDirectory");
+                baseDirectory = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("backupBaseDirectory= "))>0){
+                int lastindex = clientRequest.indexOf("\nTemperaturePeriod");
+                backupBaseDirectory = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("TemperaturePeriod= "))>0){
+                int lastindex = clientRequest.indexOf("\nPressurePeriod");
+                tempPeriod = clientRequest.substring(index,lastindex);
+              }
+              if ((index = clientRequest.lastIndexOf("PressurePeriod= "))>0){
+                int lastindex = clientRequest.indexOf("\n[MONITOR1]");
+                pressurePeriod = clientRequest.substring(index,lastindex);
+                clientRequest = "[MONITOR1]\n";
+              }
+            }
+            if(clientRequest.indexOf("[MONITOR1]")>0){
+              int index;
+              if((index = clientRequest.lastIndexOf("PORT= "))>0){
+                int lastindex = clientRequest.indexOf("\nMagnitude");
+                port1 = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("Magnitude= "))>0){
+                int lastindex = clientRequest.indexOf("\nType");
+                magnitude = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("Type= "))>0){
+                int lastindex = clientRequest.indexOf("\nCHANNEL1");
+                type = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("CHANNEL1= "))>0){
+                int lastindex = clientRequest.indexOf("\nCHANNEL2");
+                canal11 = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("CHANNEL2= "))>0){
+                int lastindex = clientRequest.indexOf("\nCHANNEL3");
+                canal12 = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("CHANNEL3= "))>0){
+                int lastindex = clientRequest.indexOf("\nCHANNEL4");
+                canal13 = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("CHANNEL4= "))>0){
+                int lastindex = clientRequest.indexOf("\nCHANNEL5");
+                canal14 = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("CHANNEL5= "))>0){
+                int lastindex = clientRequest.indexOf("\nCHANNEL6");
+                canal15 = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("CHANNEL6= "))>0){
+                int lastindex = clientRequest.indexOf("\nCHANNEL7");
+                canal16 = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("CHANNEL7= "))>0){
+                int lastindex = clientRequest.indexOf("\nCHANNEL8");
+                canal17 = clientRequest.substring(index,lastindex);
+              }
+              if((index = clientRequest.lastIndexOf("CHANNEL8= "))>0){
+                int lastindex = clientRequest.indexOf("\n[MONITOR2]");
+                canal18 = clientRequest.substring(index,lastindex);
+              }
+            }
+          }
+        }
+        // if you've gotten to the end of the line (received a newline
+        // character) and the line is blank, the http request has ended,
+        // so you can send a reply
+        //Serial.print("FreeMemory= ");
+        //Serial.println(freeMemory());
+
+
+    client.stop();
+    }
+  }
+  //Esto generará el array de canales, que posteriormente a la hora de grabarse en la SD, será cuando se decidirá cuales serán escritos y cuales no.
+  //Se decidirá cuales se escriben usando las variables boolean iniciadas globalmente para ello.
+  int i = 0;
+  if(!canal11.equals("")){
+    canales1[i] = canal11;
+    existCanal1[i] = true;
+    i++;
+  }
+  if(!canal12.equals("")){
+    canales1[i] = canal12;
+    existCanal1[i] = true;
+    i++;
+  }
+  if(!canal13.equals("")){
+    canales1[i] = canal13;
+    existCanal1[i] = true;
+    i++;
+  }
+  if(!canal14.equals("")){
+    canales1[i] = canal14;
+    existCanal1[i] = true;
+    i++;
+  }
+  if(!canal15.equals("")){
+    canales1[i] = canal15;
+    existCanal1[i] = true;
+    i++;
+  }
+  if(!canal16.equals("")){
+    canales1[i] = canal16;
+    existCanal1[i] = true;
+    i++;
+  }
+  if(!canal17.equals("")){
+    canales1[i] = canal17;
+    existCanal1[i] = true;
+    i++;
+  }
+  if(!canal18.equals("")){
+    canales1[i] = canal18;
+    existCanal1[i] = true;
+    i++;
+  }
+
 }
 
 
@@ -414,6 +293,7 @@ void webServer(){
           // so you can send a reply
           //Serial.print("FreeMemory= ");
           //Serial.println(freeMemory());
+
           if (d == '\n' && currentLineIsBlank && clientRequest.indexOf("/ HTTP/1.1")>0) {
             noInterrupts();
             // send a standard http response header
@@ -422,9 +302,6 @@ void webServer(){
             client.println("Connection:close");
             client.println();
             //Enviar pagina WebServer
-            /*client.print("<!DOCTYPE html> <html> <head> <meta charset= \"utf-8\"></meta> <meta name =\"viewport\" content=\"width=device-width,initial-scale=1.0\"></meta> <link rel=\"stylesheet\" href=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.css\"></link> <script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js\"></script> <script src=\"http://cdnjs.cloudflare.com/ajax/libs/morris.js/0.5.1/morris.min.js\"></script> <link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css\" integrity=\"sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T\" crossorigin=\"anonymous\"></link> <title>Arduino SD, Grafica de lineas</title> </head> <body> <script> var chart; $.getJSON(\"lake.json\", function (json) { var data = json.data; chart = Morris.Line({ element: 'primerGrafico', data: data, xkey: 'secs', xLabels: 'Segundos',");
-            client.print(" // A list of names of data record attributes that contain y-values. //Los 8 canales irán en las y. ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], // Labels for the ykeys -- will be displayed when you hover over the // chart. labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], resize: true, pointSize: 0, hideHover : true, smooth: false, parseTime: false, xLabelAngle: 45 }); }); var chart2; $.getJSON(\"lake2.json\", function (json) { var data = json.data; chart = Morris.Line({ element: 'segundoGrafico', data: data, xkey: 'secs', xLabels: 'Segundos', // A list of names of data record attributes that contain y-values. //Los 8 canales irán en las y. ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], // Labels for the ykeys -- will be displayed when you hover over the // chart. labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'],");
-            client.println(" resize: true, pointSize: 0, hideHover : true, smooth: false, parseTime: false, xLabelAngle: 45 }); }); var chart3; $.getJSON(\"lake3.json\", function (json) { var data = json.data; chart = Morris.Line({ element: 'TercerGrafico', data: data, xkey: 'secs', xLabels: 'Segundos', // A list of names of data record attributes that contain y-values. //Los 8 canales irán en las y. ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], // Labels for the ykeys -- will be displayed when you hover over the // chart. labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'], resize: true, pointSize: 0, hideHover : true, smooth: false, parseTime: false, xLabelAngle: 45 }); }); function update() { $.getJSON(\"lake.json\", function (json){ chart.setData(json.data); }) }; function update2() { $.getJSON(\"lake2.json\", function (json){ chart.setData(json.data); }) }; function update3() { $.getJSON(\"lake3.json\", function (json){ chart.setData(json.data); }) }; setInterval(update, 60000); setInterval(update2, 60000); setInterval(update3, 60000); </script> <div class=\"container\"> <h1>Gráficas</h1> <div class=\"row\"> <div class=\"col-md-12\"> <h2>Primer Grupo</h2> <div id=\"primerGrafico\"></div> </div> </div> <div class=\"row\"> <div class=\"col-md-12\"> <h2>Segundo Grupo</h2> <div id=\"segundoGrafico\"></div> </div> </div> <div class=\"row\"> <div class=\"col-md-12\"> <h2>Tercer Grupo</h2> <div id=\"tercerGrafico\"></div> </div> </div> </div> </body> </html>");*/
             File webFile = SD.open("lineas/index.htm");
             if(webFile){
               while(webFile.available()){
@@ -435,7 +312,7 @@ void webServer(){
             interrupts();
             break;
           }
-          if(clientRequest.indexOf("/lake.json") > 0 && currentLineIsBlank && d== '\n'){
+          if(clientRequest.indexOf("/datos.json") > 0 && currentLineIsBlank && d== '\n'){
             noInterrupts();
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
@@ -512,18 +389,143 @@ void webServer(){
 }
 
 void loop() {
-if(secs%50 == 0 && secs != 0){
-  Serial1.end();
-  SD.end();
-  Serial.println("Cerro la conexion");
-  Serial1.begin(9600,SERIAL_7O1);
-  SD.begin(4);
-  secs+=5;
-  stop = false;
+  if(secs%10 == 0 && secs != 0){
+    SD.end();
+    Serial1.end();
+    Serial2.end();
+    Serial3.end();
+    Serial.println("Cerro la conexion");
+    Serial1.begin(9600,SERIAL_7O1);
+    Serial2.begin(9600,SERIAL_7O1);
+    Serial3.begin(9600,SERIAL_7O1);
+    SD.begin(4);
+    secs++;
+    stop = false;
+  }
+    webServer();
 }
+void mediciones(int puerto){
+  //Seleccionara cada puerto
+  switch(puerto){
+    case 1:
+    {
+      int aux = 0;
+      Serial1.write("KRDG?\r\n");
+      Serial1.println();
+      delay(2);
+      //Guardará las 8 temperaturas
+      char temp [8][7];
+      //Con este bucle generaremos el numero de canales necesarios y podremos indicar después que canales queremos mostrar
+      //Así aunque recojamos todos los canales se podrán elegir el muestre y que nombre quieren, usando condicionales de NULL, en las
+      //variables creadas e inicializadas en el setup
 
-webServer();
+      char lakeshore;
+      int z = 0;
+      while(Serial1.available()){
+        MatchState ms;
+        for (int i = 0; i < 8; i++) {
+          z=0;
+          while(z < 7) {
+            if ((lakeshore = Serial1.read())==',') {
+              lakeshore = Serial1.read();
+            }
+            temp[i][z] = lakeshore;
+            z++;
+          }
+          ms.Target(temp[i]);
+
+          char result = ms.Match("^[+-][0-9]*[%.][0-9]*", 0);
+          if (result == REGEXP_MATCHED){
+            aux++;
+          }
+        }
+        if(aux == 8){
+          stop = true;
+        }else{
+          stop = false;
+        }
+      }
+
+      if(SD.exists("lake.jso") && puede && stop){
+       File paraComa = SD.open("lake.jso", FILE_WRITE);
+       paraComa.println(",");
+       paraComa.close();
+      }
 
 
+      File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
+
+        if(stop){
+          lakeshoreData.print("{");
+          lakeshoreData.print("\"secs\":\"");
+          sendNTPpacket(timeServer); // send an NTP packet to a time server
+
+          // wait to see if a reply is available
+          while(!Udp.parsePacket()){
+            delay(1);
+          }
+          Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
+
+          // the timestamp starts at byte 40 of the received packet and is four bytes,
+          // or two words, long. First, extract the two words:
+
+          unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+          unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
+          // combine the four bytes (two words) into a long integer
+          // this is NTP time (seconds since Jan 1 1900):
+          unsigned long secsSince1900 = highWord << 16 | lowWord;
+          // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
+          const unsigned long seventyYears = 2208988800UL;
+          // subtract seventy years:
+          unsigned long epoch = secsSince1900 - seventyYears;
+          lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+          lakeshoreData.print(':');
+          if (((epoch % 3600) / 60) < 10) {
+            // In the first 10 minutes of each hour, we'll want a leading '0'
+            lakeshoreData.print('0');
+          }
+          lakeshoreData.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+          lakeshoreData.print(':');
+          if ((epoch % 60) < 10) {
+            // In the first 10 seconds of each minute, we'll want a leading '0'
+            lakeshoreData.print('0');
+          }
+          lakeshoreData.print(epoch % 60); // print the second
+          //Añadir fecha a la hora mostrada.
+          Ethernet.maintain();
+          lakeshoreData.print("\",");
+        }
+        secs += 1;
+        for (int i = 0; i < CANALESSIZE; i++){
+          if(stop){
+            lakeshoreData.print("\"");
+            lakeshoreData.print(canales1[i]);
+            lakeshoreData.print("\":\"");
+            if (existCanal1[i]) {
+              for (int j = 0; j < 7; i++) {
+                  lakeshoreData.print(temp[i][j]);
+              }
+            }
+            if (i < CANALESSIZE-1){
+              lakeshoreData.print("\",");
+            }else{
+              lakeshoreData.print("\"");
+            }
+          }
+          Serial.print("FreeMemory() = ");
+          Serial.println(freeMemory());
+        }
+        if(stop){
+          lakeshoreData.print("}");
+          puede = true;
+        }
+        lakeshoreData.close();
+
+      break;
+    }
+
+    default:
+      Serial.write("Uys algo fui mal.");
+  }
 
 }
