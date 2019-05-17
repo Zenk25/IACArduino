@@ -45,7 +45,7 @@
             xLabelAngle: 45
           });
       });
-      var chart2;
+    /*  var chart2;
       $.getJSON("datos.json", function (json) {
         var data = json.data;
         chart = Morris.Line({
@@ -88,14 +88,14 @@
             parseTime: false,
             xLabelAngle: 45
           });
-      });
+      });*/
 
       function update() {
         $.getJSON("datos.json", function (json){
           chart.setData(json.data);
         })
       };
-      function update2() {
+      /*function update2() {
         $.getJSON("datos.json", function (json){
           chart.setData(json.data);
         })
@@ -104,12 +104,12 @@
         $.getJSON("datos.json", function (json){
           chart.setData(json.data);
         })
-      };
+      };*/
 
 
-
+/*
       setInterval(update2, 60000);
-      setInterval(update3, 60000);
+      setInterval(update3, 60000);*/
       setInterval(update, 60000);
       </script>
         <div class="container">

@@ -2,18 +2,18 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SD.h>
-#include <TimerOne.h>
 #include <MemoryFree.h>
 #include <Regexp.h>
 
 //Se podrá poner comprobadores de espacios y demás errores a la hora de crear el config.ini,
 //por ahora no estan implementados.
+unsigned long oldtime = 0;
 //Declaración variables para el Header, en el setup se inicializarán.
 String subsystem = "", cicle = "",responsible = "", objective = "", baseDirectory = "", backupBaseDirectory = "", tempPeriod = "", pressurePeriod = "";
 //Declaración variables para el Monitor 1, en el setup se inicializarán.
 String port1 = "", magnitude = "", type = "";
 const int CANALESSIZE = 8;
-//String canales1[8] = {"valido1","","","","","","",""};
+String canales1[8] = {"valido1","","","","","","",""};
 String temperaturas = "";
 // telnet defaults to port 23
 EthernetServer server(80);
@@ -22,7 +22,7 @@ int secs = 0;
 
 unsigned int localPort = 8888;
 const int NTP_PACKET_SIZE = 48;
-char timeServer[] = "1.europe.pool.ntp.org";
+char timeServer[] = "1.es.pool.ntp.org";
 byte packetBuffer[NTP_PACKET_SIZE];
 
 EthernetUDP Udp;
@@ -51,15 +51,6 @@ void sendNTPpacket(const char* address){
 
 //Esta clase se encargará de recoger las mediciones de los canales.
 void mediciones(int puerto);
-
-void interrupcion(){
-  mediciones(1);
-  Serial.print(freeMemory());
-
-}
-
-
-
 
 void setup() {
   byte mac[] = {
@@ -94,8 +85,6 @@ void setup() {
    }
    secs = 0;
 
-   Timer1.initialize(30000000);
-   Timer1.attachInterrupt(interrupcion);
   // You can use Ethernet.init(pin) to configure the CS pin
   //Ethernet.init(10);  // Most Arduino shields
   //Ethernet.init(5);   // MKR ETH shield
@@ -238,6 +227,7 @@ void setup() {
   client.stop();
   //Esto generará el array de canales, que posteriormente a la hora de grabarse en la SD, será cuando se decidirá cuales serán escritos y cuales no.
   //Se decidirá cuales se escriben usando las variables boolean iniciadas globalmente para ello.
+  oldtime = millis();
   Serial.println("Todo bien.");
 }
 
@@ -245,137 +235,134 @@ void setup() {
 void webServer(){
   delay(2);
 
-  noInterrupts();
   boolean html = false, json = false, json2 = false, json3 = false;
-  for(int i= 0; i < 2; i++){
-    EthernetClient client = server.available();
-    if (client) {
-      boolean currentLineIsBlank = true;
-      String clientRequest = "";
-      while (client.connected()) {
-          char d;
-          while(client.available()){
-            d = client.read();
-            clientRequest += d;
-            if(clientRequest.indexOf("/ HTTP/1.1")>0 || html){
-              html = true;
-              clientRequest = "";
-            }if(clientRequest.indexOf("/datos.json") > 0 || html){
-              json = true;
-              clientRequest = "";
-            }if(clientRequest.indexOf("/datos2.json") > 0 || html){
-              json2 = true;
-              clientRequest = "";
-            }if(clientRequest.indexOf("/datos3.json") > 0 || html){
-              json3 = true;
-              clientRequest = "";
-            }
-          }
-          // if you've gotten to the end of the line (received a newline
-          // character) and the line is blank, the http request has ended,
-          // so you can send a reply
-          //Serial.print("FreeMemory= ");
-          //Serial.println(freeMemory());
+  EthernetClient client = server.available();
+  if (client) {
+    boolean currentLineIsBlank = true;
+    String clientRequest = "";
+    while (client.connected()) {
+        char d;
+        while(client.available()){
+          d = client.read();
+          clientRequest += d;
+          if(clientRequest.indexOf("/ HTTP/1.1")>0 || html){
+            html = true;
+            clientRequest = "";
+          }if(clientRequest.indexOf("/datos.json") > 0 || json){
+            json = true;
+            clientRequest = "";
+          }/*if(clientRequest.indexOf("/datos2.json") > 0 || html){
+            json2 = true;
+            clientRequest = "";
+          }if(clientRequest.indexOf("/datos3.json") > 0 || html){
+            json3 = true;
+            clientRequest = "";
+          }*/
+        }
+        // if you've gotten to the end of the line (received a newline
+        // character) and the line is blank, the http request has ended,
+        // so you can send a reply
 
-          if (d == '\n' && currentLineIsBlank && html) {
-            // send a standard http response header
-            client.println("HTTP/1.1 200 OK");  // the connection will be closed after completion of the response
-            client.println("Content-Type: text/html");  // refresh the page automatically every 5 sec
-            client.println("Connection:close");
+        if (d == '\n' && currentLineIsBlank && html) {
+          Serial.println("Mande el html");
+          // send a standard http response header
+          client.println("HTTP/1.1 200 OK");  // the connection will be closed after completion of the response
+          client.println("Content-Type: text/html");  // refresh the page automatically every 5 sec
+          client.println("Connection:close");
+          client.println();
+          //Enviar pagina WebServer
+          File webFile = SD.open("lineas/index.htm");
+          if(webFile){
+            while(webFile.available()){
+              client.write(webFile.read());
+            }
+          webFile.close();
+        }
+          html = false;
+          Serial.println("Termine de mandarlo");
+          break;
+        }
+        if(json && currentLineIsBlank && d== '\n'){
+
+          Serial.println("Mande el json");
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: application/json");
+          client.println("Connection: close");
+          client.println();
+
+          client.println("{\"data\":[");
+          File webFile = SD.open("lake.jso",FILE_READ);
+          if(webFile){
+            while(webFile.available()){
+              client.write(webFile.read());
+            }
+            client.println("]}");
             client.println();
-            //Enviar pagina WebServer
-            File webFile = SD.open("lineas/index.htm");
-            if(webFile){
-              while(webFile.available()){
-                client.write(webFile.read());
-              }
+
             webFile.close();
           }
-            interrupts();
-            html = false;
-            break;
-          }
-          if(json && currentLineIsBlank && d== '\n'){
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: application/json");
-            client.println("Connection: close");
+          Serial.println("Termine de mandarlo");
+          json = false;
+          break;
+        }
+        if(json2 && currentLineIsBlank && d== '\n'){
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: application/json");
+          client.println("Connection: close");
+          client.println();
+          File webFile = SD.open("lake2.jso",FILE_READ);
+          if(webFile){
+            while(webFile.available()){
+              client.write(webFile.read());
+            }
+            client.println("]}");
             client.println();
 
-            client.println("{\"data\":[");
-            File webFile = SD.open("lake.jso",FILE_READ);
-            if(webFile){
-              while(webFile.available()){
-                //Añadir este patron de comprobacion aqui [\d\w"}{:+.,\n]
-                client.write(webFile.read());
-              }
-              client.println("]}");
-              client.println();
-
-              webFile.close();
-            }
-            interrupts();
-            json = false;
-            break;
+            webFile.close();
           }
-          if(json2 && currentLineIsBlank && d== '\n'){
-            Serial.println("Mande el json");
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: application/json");
-            client.println("Connection: close");
+          json2 = false;
+          break;
+        }
+        if(json3 && currentLineIsBlank && d== '\n'){
+          Serial.println("Mande el json");
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: application/json");
+          client.println("Connection: close");
+          client.println();
+          File webFile = SD.open("lake3.jso",FILE_READ);
+          if(webFile){
+            while(webFile.available()){
+              client.write(webFile.read());
+            }
+            client.println("]}");
             client.println();
-            File webFile = SD.open("lake2.jso",FILE_READ);
-            if(webFile){
-              while(webFile.available()){
-                client.write(webFile.read());
-              }
-              client.println("]}");
-              client.println();
 
-              webFile.close();
-            }
-            interrupts();
-            json2 = false;
-            break;
+            webFile.close();
           }
-          if(json3 && currentLineIsBlank && d== '\n'){
-            Serial.println("Mande el json");
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: application/json");
-            client.println("Connection: close");
-            client.println();
-            File webFile = SD.open("lake3.jso",FILE_READ);
-            if(webFile){
-              while(webFile.available()){
-                client.write(webFile.read());
-              }
-              client.println("]}");
-              client.println();
-
-              webFile.close();
-            }
-            interrupts();
-            json3 = false;
-            break;
-          }
-          if (d == '\n') {
-            // you're starting a new line
-            currentLineIsBlank = true;
-          } else if (d != '\r') {
-            // you've gotten a character on the current line
-            currentLineIsBlank = false;
-          }
-      }
+          json3 = false;
+          break;
+        }
+        if (d == '\n') {
+          // you're starting a new line
+          currentLineIsBlank = true;
+        } else if (d != '\r') {
+          // you've gotten a character on the current line
+          currentLineIsBlank = false;
+        }
       // give the web browser secs to receive the data
-      delay(1);
-      // close the connection:
-
-      client.stop();
     }
+    delay(1);
+    Serial.println("Se cerro");
+    // close the connection:
+    client.stop();
   }
-  interrupts();
 }
 
 void loop() {
+
+  if(millis()-oldtime > 30000 ){
+    mediciones(1);
+  }
   if(secs%10 == 0 && secs != 0){
     SD.end();
     Serial1.end();
@@ -393,13 +380,13 @@ void loop() {
 }
 void mediciones(int puerto){
   //Seleccionara cada puerto
+  oldtime = millis();
   temperaturas = "";
   switch(puerto){
     case 1:
     {
       Serial1.write("KRDG?\r\n");
       Serial1.println();
-      delayMicroseconds(2000000);
       //Con este bucle generaremos el numero de canales necesarios y podremos indicar después que canales queremos mostrar
       //Así aunque recojamos todos los canales se podrán elegir el muestre y que nombre quieren, usando condicionales de NULL, en las
       //variables creadas e inicializadas en el setup
@@ -422,8 +409,6 @@ void mediciones(int puerto){
           aux++;
         }
       }
-      Serial.println(aux);
-      Serial.println(temperaturas);
       if(aux == 8){
         stop = true;
       }else{
@@ -436,72 +421,86 @@ void mediciones(int puerto){
        paraComa.println(",");
        paraComa.close();
       }
-
-      Serial.println();
       File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
 
+      if(lakeshoreData){
         if(stop){
-          lakeshoreData.print("{");
-          lakeshoreData.print("\"secs\":\"");
           sendNTPpacket(timeServer); // send an NTP packet to a time server
-
+          delay(1000);
           // wait to see if a reply is available
-          while(!Udp.parsePacket()){
-            delay(1);
-          }
-          Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
+          if(Udp.parsePacket()){
+            lakeshoreData.print("{");
+            lakeshoreData.print("\"secs\":\"");
+            Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
 
-          // the timestamp starts at byte 40 of the received packet and is four bytes,
-          // or two words, long. First, extract the two words:
-
-          unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-          unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-          // combine the four bytes (two words) into a long integer
-          // this is NTP time (seconds since Jan 1 1900):
-          unsigned long secsSince1900 = highWord << 16 | lowWord;
-          // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
-          const unsigned long seventyYears = 2208988800UL;
-          // subtract seventy years:
-          unsigned long epoch = secsSince1900 - seventyYears;
-          lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
-          lakeshoreData.print(':');
-          if (((epoch % 3600) / 60) < 10) {
-            // In the first 10 minutes of each hour, we'll want a leading '0'
-            lakeshoreData.print('0');
+            Serial.println(freeMemory());
+            // the timestamp starts at byte 40 of the received packet and is four bytes,
+            // or two words, long. First, extract the two words:
+            Serial.write("Bien");
+            unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+            unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
+            // combine the four bytes (two words) into a long integer
+            // this is NTP time (seconds since Jan 1 1900):
+            unsigned long secsSince1900 = highWord << 16 | lowWord;
+            // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
+            const unsigned long seventyYears = 2208988800UL;
+            // subtract seventy years:
+            unsigned long epoch = secsSince1900 - seventyYears;
+            lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+            lakeshoreData.print(':');
+            Serial.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+            Serial.print(':');
+            if (((epoch % 3600) / 60) < 10) {
+              // In the first 10 minutes of each hour, we'll want a leading '0'
+              lakeshoreData.print('0');
+              Serial.print('0');
+            }
+            lakeshoreData.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+            lakeshoreData.print(':');
+            Serial.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+            Serial.print(':');
+            if ((epoch % 60) < 10) {
+              // In the first 10 seconds of each minute, we'll want a leading '0'
+              lakeshoreData.print('0');
+              Serial.print('0');
+            }
+            lakeshoreData.print(epoch % 60);
+            Serial.print(epoch % 60);// print the second
+            //Añadir fecha a la hora mostrada.
+            lakeshoreData.print("\",");
+            Serial.println(Ethernet.maintain());
+          }else{
+            Serial.println("No funciono");
+            stop = false;
           }
-          lakeshoreData.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
-          lakeshoreData.print(':');
-          if ((epoch % 60) < 10) {
-            // In the first 10 seconds of each minute, we'll want a leading '0'
-            lakeshoreData.print('0');
-          }
-          lakeshoreData.print(epoch % 60); // print the second
-          //Añadir fecha a la hora mostrada.
-          Ethernet.maintain();
-          lakeshoreData.print("\",");
         }
+
         desplazamiento = 0;
         secs += 1;
-        for (int i = 0; i < CANALESSIZE; i++){
-          if(stop /*&& !canales1[i].equals("")*/){
-            lakeshoreData.print("\"Temp");
-            lakeshoreData.print(i);
+        for (int i = 0; i < 8; i++){
+          if(stop && !canales1[i].equals("")){
+            lakeshoreData.print("\"");
+            lakeshoreData.print(canales1[i]);
             lakeshoreData.print("\":\"");
-            for (int j = 0; j < 7; i++) {
+            for (int j = 0; j < 7; j++) {
               lakeshoreData.print(temperaturas[j+desplazamiento]);
             }if (i < CANALESSIZE-1){
+              if(!canales1[i+1].equals("")){
+                lakeshoreData.print("\"");
+              }else{
               lakeshoreData.print("\",");
-            }else{
-              lakeshoreData.print("\"");
+              }
             }
+            desplazamiento += 8;
           }
-          desplazamiento += 8;
+
         }
         if(stop){
           lakeshoreData.print("}");
           puede = true;
         }
-        lakeshoreData.close();
+      }
+      lakeshoreData.close();
       break;
     }
 
