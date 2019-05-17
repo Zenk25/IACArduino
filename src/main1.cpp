@@ -13,8 +13,8 @@ String subsystem = "", cicle = "",responsible = "", objective = "", baseDirector
 //Declaración variables para el Monitor 1, en el setup se inicializarán.
 String port1 = "", magnitude = "", type = "";
 const int CANALESSIZE = 8;
-boolean existCanal1[8] = {false, false, false, false,  false,  false,  false,  false};
-String canales1[8] = {"","","","","","","",""};
+//String canales1[8] = {"valido1","","","","","","",""};
+String temperaturas = "";
 // telnet defaults to port 23
 EthernetServer server(80);
 boolean puede = false, puede2= false, puede3= false, stop = false, stop2 = false, stop3 = false;
@@ -120,7 +120,6 @@ void setup() {
   server.begin();
   Udp.begin(localPort);
   EthernetClient client = server.available();
-  String canal11 = "valido1", canal12 = "valido1", canal13 = "valido1", canal14 = "valido1", canal15 = "valido1", canal16 = "valido1", canal17 = "valido1", canal18 = "valido1";
   if (client) {
     boolean currentLineIsBlank = true;
     String clientRequest = "";
@@ -183,93 +182,63 @@ void setup() {
               }
               if((index = clientRequest.lastIndexOf("CHANNEL1= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL2");
-                canal11 = clientRequest.substring(index,lastindex);
+                if(!clientRequest.substring(index,lastindex).equals("")){
+                  //canales1[0] = clientRequest.substring(index,lastindex);
+                }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL2= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL3");
-                canal12 = clientRequest.substring(index,lastindex);
+                if(!clientRequest.substring(index,lastindex).equals("")){
+                  //canales1[1] = clientRequest.substring(index,lastindex);
+                }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL3= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL4");
-                canal13 = clientRequest.substring(index,lastindex);
+                if(!clientRequest.substring(index,lastindex).equals("")){
+                  //canales1[2] = clientRequest.substring(index,lastindex);
+                }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL4= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL5");
-                canal14 = clientRequest.substring(index,lastindex);
+                if(!clientRequest.substring(index,lastindex).equals("")){
+                  //canales1[3] = clientRequest.substring(index,lastindex);
+                }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL5= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL6");
-                canal15 = clientRequest.substring(index,lastindex);
+                if(!clientRequest.substring(index,lastindex).equals("")){
+                  //canales1[4] = clientRequest.substring(index,lastindex);
+                }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL6= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL7");
-                canal16 = clientRequest.substring(index,lastindex);
+                if(!clientRequest.substring(index,lastindex).equals("")){
+                  //canales1[5] = clientRequest.substring(index,lastindex);
+                }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL7= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL8");
-                canal17 = clientRequest.substring(index,lastindex);
+                if(!clientRequest.substring(index,lastindex).equals("")){
+                  //canales1[6] = clientRequest.substring(index,lastindex);
+                }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL8= "))>0){
                 int lastindex = clientRequest.indexOf("\n[MONITOR2]");
-                canal18 = clientRequest.substring(index,lastindex);
+                if(!clientRequest.substring(index,lastindex).equals("")){
+                  //canales1[7] = clientRequest.substring(index,lastindex);
+                }
               }
             }
           }
         }
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the http request has ended,
-        // so you can send a reply
-        //Serial.print("FreeMemory= ");
-        //Serial.println(freeMemory());
-
-
-    client.stop();
+      Serial.println("Todo bien.");
+      client.stop();
+      }
     }
-  }
+  client.stop();
   //Esto generará el array de canales, que posteriormente a la hora de grabarse en la SD, será cuando se decidirá cuales serán escritos y cuales no.
   //Se decidirá cuales se escriben usando las variables boolean iniciadas globalmente para ello.
-  int i = 0;
-  if(!canal11.equals("")){
-    canales1[i] = canal11;
-    existCanal1[i] = true;
-    i++;
-  }
-  if(!canal12.equals("")){
-    canales1[i] = canal12;
-    existCanal1[i] = true;
-    i++;
-  }
-  if(!canal13.equals("")){
-    canales1[i] = canal13;
-    existCanal1[i] = true;
-    i++;
-  }
-  if(!canal14.equals("")){
-    canales1[i] = canal14;
-    existCanal1[i] = true;
-    i++;
-  }
-  if(!canal15.equals("")){
-    canales1[i] = canal15;
-    existCanal1[i] = true;
-    i++;
-  }
-  if(!canal16.equals("")){
-    canales1[i] = canal16;
-    existCanal1[i] = true;
-    i++;
-  }
-  if(!canal17.equals("")){
-    canales1[i] = canal17;
-    existCanal1[i] = true;
-    i++;
-  }
-  if(!canal18.equals("")){
-    canales1[i] = canal18;
-    existCanal1[i] = true;
-    i++;
-  }
-
+  Serial.println("Todo bien.");
 }
 
 
@@ -277,6 +246,7 @@ void webServer(){
   delay(2);
 
   noInterrupts();
+  boolean html = false, json = false, json2 = false, json3 = false;
   for(int i= 0; i < 2; i++){
     EthernetClient client = server.available();
     if (client) {
@@ -287,6 +257,19 @@ void webServer(){
           while(client.available()){
             d = client.read();
             clientRequest += d;
+            if(clientRequest.indexOf("/ HTTP/1.1")>0 || html){
+              html = true;
+              clientRequest = "";
+            }if(clientRequest.indexOf("/datos.json") > 0 || html){
+              json = true;
+              clientRequest = "";
+            }if(clientRequest.indexOf("/datos2.json") > 0 || html){
+              json2 = true;
+              clientRequest = "";
+            }if(clientRequest.indexOf("/datos3.json") > 0 || html){
+              json3 = true;
+              clientRequest = "";
+            }
           }
           // if you've gotten to the end of the line (received a newline
           // character) and the line is blank, the http request has ended,
@@ -294,8 +277,7 @@ void webServer(){
           //Serial.print("FreeMemory= ");
           //Serial.println(freeMemory());
 
-          if (d == '\n' && currentLineIsBlank && clientRequest.indexOf("/ HTTP/1.1")>0) {
-            noInterrupts();
+          if (d == '\n' && currentLineIsBlank && html) {
             // send a standard http response header
             client.println("HTTP/1.1 200 OK");  // the connection will be closed after completion of the response
             client.println("Content-Type: text/html");  // refresh the page automatically every 5 sec
@@ -310,10 +292,10 @@ void webServer(){
             webFile.close();
           }
             interrupts();
+            html = false;
             break;
           }
-          if(clientRequest.indexOf("/datos.json") > 0 && currentLineIsBlank && d== '\n'){
-            noInterrupts();
+          if(json && currentLineIsBlank && d== '\n'){
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
             client.println("Connection: close");
@@ -332,9 +314,10 @@ void webServer(){
               webFile.close();
             }
             interrupts();
+            json = false;
             break;
           }
-          if(clientRequest.indexOf("/lake2.json") > 0 && currentLineIsBlank && d== '\n'){
+          if(json2 && currentLineIsBlank && d== '\n'){
             Serial.println("Mande el json");
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
@@ -350,9 +333,11 @@ void webServer(){
 
               webFile.close();
             }
+            interrupts();
+            json2 = false;
             break;
           }
-          if(clientRequest.indexOf("/lake3.json") > 0 && currentLineIsBlank && d== '\n'){
+          if(json3 && currentLineIsBlank && d== '\n'){
             Serial.println("Mande el json");
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: application/json");
@@ -368,6 +353,8 @@ void webServer(){
 
               webFile.close();
             }
+            interrupts();
+            json3 = false;
             break;
           }
           if (d == '\n') {
@@ -406,45 +393,43 @@ void loop() {
 }
 void mediciones(int puerto){
   //Seleccionara cada puerto
+  temperaturas = "";
   switch(puerto){
     case 1:
     {
-      int aux = 0;
       Serial1.write("KRDG?\r\n");
       Serial1.println();
-      delay(2);
-      //Guardará las 8 temperaturas
-      char temp [8][7];
+      delayMicroseconds(2000000);
       //Con este bucle generaremos el numero de canales necesarios y podremos indicar después que canales queremos mostrar
       //Así aunque recojamos todos los canales se podrán elegir el muestre y que nombre quieren, usando condicionales de NULL, en las
       //variables creadas e inicializadas en el setup
 
-      char lakeshore;
-      int z = 0;
+      MatchState ms;
+      char patron[7];
+      int desplazamiento = 0, aux = 0;
       while(Serial1.available()){
-        MatchState ms;
-        for (int i = 0; i < 8; i++) {
-          z=0;
-          while(z < 7) {
-            if ((lakeshore = Serial1.read())==',') {
-              lakeshore = Serial1.read();
-            }
-            temp[i][z] = lakeshore;
-            z++;
-          }
-          ms.Target(temp[i]);
-
-          char result = ms.Match("^[+-][0-9]*[%.][0-9]*", 0);
-          if (result == REGEXP_MATCHED){
-            aux++;
-          }
+        temperaturas += (char) Serial1.read();
+      }
+      delayMicroseconds(20);
+      for (size_t i = 0; i < 8; i++) {
+        for (size_t j = 0; j < 7; j++) {
+          patron[j] = temperaturas[j+desplazamiento];
         }
-        if(aux == 8){
-          stop = true;
-        }else{
-          stop = false;
+        desplazamiento += 8;
+        ms.Target(patron);
+        char result = ms.Match("^[+-][0-9]*[%.][0-9]*", 0);
+        if (result == REGEXP_MATCHED){
+          aux++;
         }
       }
+      Serial.println(aux);
+      Serial.println(temperaturas);
+      if(aux == 8){
+        stop = true;
+      }else{
+        stop = false;
+      }
+
 
       if(SD.exists("lake.jso") && puede && stop){
        File paraComa = SD.open("lake.jso", FILE_WRITE);
@@ -452,7 +437,7 @@ void mediciones(int puerto){
        paraComa.close();
       }
 
-
+      Serial.println();
       File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
 
         if(stop){
@@ -495,32 +480,28 @@ void mediciones(int puerto){
           Ethernet.maintain();
           lakeshoreData.print("\",");
         }
+        desplazamiento = 0;
         secs += 1;
         for (int i = 0; i < CANALESSIZE; i++){
-          if(stop){
-            lakeshoreData.print("\"");
-            lakeshoreData.print(canales1[i]);
+          if(stop /*&& !canales1[i].equals("")*/){
+            lakeshoreData.print("\"Temp");
+            lakeshoreData.print(i);
             lakeshoreData.print("\":\"");
-            if (existCanal1[i]) {
-              for (int j = 0; j < 7; i++) {
-                  lakeshoreData.print(temp[i][j]);
-              }
-            }
-            if (i < CANALESSIZE-1){
+            for (int j = 0; j < 7; i++) {
+              lakeshoreData.print(temperaturas[j+desplazamiento]);
+            }if (i < CANALESSIZE-1){
               lakeshoreData.print("\",");
             }else{
               lakeshoreData.print("\"");
             }
           }
-          Serial.print("FreeMemory() = ");
-          Serial.println(freeMemory());
+          desplazamiento += 8;
         }
         if(stop){
           lakeshoreData.print("}");
           puede = true;
         }
         lakeshoreData.close();
-
       break;
     }
 
