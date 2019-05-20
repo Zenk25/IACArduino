@@ -8,12 +8,13 @@
 //Se podrá poner comprobadores de espacios y demás errores a la hora de crear el config.ini,
 //por ahora no estan implementados.
 unsigned long oldtime = 0;
+unsigned long epoch;
 //Declaración variables para el Header, en el setup se inicializarán.
 String subsystem = "", cicle = "",responsible = "", objective = "", baseDirectory = "", backupBaseDirectory = "", tempPeriod = "", pressurePeriod = "";
 //Declaración variables para el Monitor 1, en el setup se inicializarán.
 String port1 = "", magnitude = "", type = "";
 const int CANALESSIZE = 8;
-String canales1[8] = {"valido1","","","","","","",""};
+String canales1[8] = {"Temp1","Temp2","Temp3","Temp4","Temp5","Temp6","Temp7","Temp8"};
 String temperaturas = "";
 // telnet defaults to port 23
 EthernetServer server(80);
@@ -22,13 +23,14 @@ int secs = 0;
 
 unsigned int localPort = 8888;
 const int NTP_PACKET_SIZE = 48;
-char timeServer[] = "1.es.pool.ntp.org";
+char timeServer[] = "time.nist.gov";
 byte packetBuffer[NTP_PACKET_SIZE];
 
 EthernetUDP Udp;
 
 //Esta clase será necesaria para obtener la fecha desde un servidor NTP
-void sendNTPpacket(const char* address){
+void sendNTPpacket(){
+  Serial.println("Enviando...");
     // Pone todos los bytes del buffer a 0
     memset(packetBuffer, 0, NTP_PACKET_SIZE);
     // Inicializa las variables necesarias para un paquete NTP
@@ -41,16 +43,28 @@ void sendNTPpacket(const char* address){
     packetBuffer[13]  = 0x4E;
     packetBuffer[14]  = 49;
     packetBuffer[15]  = 52;
+    Serial.println(freeMemory());
 
+    SD.end();
     // todos los campos del NTP tienen valores, asíque ahora
     // puedes enviar un mensaje pidiendo la fecha y hora
-    Udp.beginPacket(address, 123); //los pedidos NTP se hacen a través del puerto 123
-    Udp.write(packetBuffer, NTP_PACKET_SIZE);
-    Udp.endPacket();
+    if((Udp.beginPacket(timeServer, 123))!=1){
+      delay(1000);
+      Serial.println(Udp.beginPacket(timeServer,123));
+      //Si falla que no escriba la coma.
+    }
+    //los pedidos NTP se hacen a través del puerto 123
+
+    Serial.println(Udp.write(packetBuffer, NTP_PACKET_SIZE));
+
+    Serial.println(Udp.endPacket());
+
+    SD.begin(4);
 }
 
 //Esta clase se encargará de recoger las mediciones de los canales.
 void mediciones(int puerto);
+unsigned long getTimeEpoch();
 
 void setup() {
   byte mac[] = {
@@ -228,6 +242,7 @@ void setup() {
   //Esto generará el array de canales, que posteriormente a la hora de grabarse en la SD, será cuando se decidirá cuales serán escritos y cuales no.
   //Se decidirá cuales se escriben usando las variables boolean iniciadas globalmente para ello.
   oldtime = millis();
+  epoch = getTimeEpoch();
   Serial.println("Todo bien.");
 }
 
@@ -359,9 +374,13 @@ void webServer(){
 }
 
 void loop() {
+  Ethernet.maintain();
 
-  if(millis()-oldtime > 30000 ){
+  if(millis()-oldtime > 5000 ){
+    epoch += 5;
+    Serial.println("A medir");
     mediciones(1);
+
   }
   if(secs%10 == 0 && secs != 0){
     SD.end();
@@ -424,14 +443,16 @@ void mediciones(int puerto){
       File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
 
       if(lakeshoreData){
+        Serial.println("SD");
         if(stop){
-          sendNTPpacket(timeServer); // send an NTP packet to a time server
-          delay(1000);
+          Serial.println("Hola");
+          //sendNTPpacket(); // send an NTP packet to a time server
+          //delay(1000);
           // wait to see if a reply is available
-          if(Udp.parsePacket()){
+          //if(Udp.parsePacket()){
             lakeshoreData.print("{");
             lakeshoreData.print("\"secs\":\"");
-            Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
+            /*Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
 
             Serial.println(freeMemory());
             // the timestamp starts at byte 40 of the received packet and is four bytes,
@@ -446,6 +467,19 @@ void mediciones(int puerto){
             const unsigned long seventyYears = 2208988800UL;
             // subtract seventy years:
             unsigned long epoch = secsSince1900 - seventyYears;
+            */
+            /*lakeshoreData.print(((epoch+3600) % 2629743UL) / 86400L);
+            Serial.print(((epoch+3600) % 2629743UL) / 86400L);
+            lakeshoreData.print("-");
+            Serial.print("-");
+            lakeshoreData.print(((epoch+3600) % 31556926UL) / 2629743UL);
+            Serial.print(((epoch+3600) % 31556926UL) / 2629743UL);
+            lakeshoreData.print("-");
+            Serial.print("-");
+            lakeshoreData.print((epoch+3600) % 31556926UL);
+            Serial.print((epoch+3600) % 31556926UL);
+            lakeshoreData.print("\t");
+            Serial.print("\t");*/
             lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
             lakeshoreData.print(':');
             Serial.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
@@ -468,11 +502,10 @@ void mediciones(int puerto){
             Serial.print(epoch % 60);// print the second
             //Añadir fecha a la hora mostrada.
             lakeshoreData.print("\",");
-            Serial.println(Ethernet.maintain());
-          }else{
+          /*}else{
             Serial.println("No funciono");
             stop = false;
-          }
+          }*/
         }
 
         desplazamiento = 0;
@@ -485,11 +518,13 @@ void mediciones(int puerto){
             for (int j = 0; j < 7; j++) {
               lakeshoreData.print(temperaturas[j+desplazamiento]);
             }if (i < CANALESSIZE-1){
-              if(!canales1[i+1].equals("")){
+              if(canales1[i+1].equals("")){
                 lakeshoreData.print("\"");
               }else{
-              lakeshoreData.print("\",");
+                lakeshoreData.print("\",");
               }
+            }else{
+              lakeshoreData.print("\"");
             }
             desplazamiento += 8;
           }
@@ -508,4 +543,27 @@ void mediciones(int puerto){
       Serial.write("Uys algo fui mal.");
   }
 
+}
+
+unsigned long getTimeEpoch(){
+  sendNTPpacket(); // send an NTP packet to a time server
+  delay(1000);
+  // wait to see if a reply is available
+  if(Udp.parsePacket()){
+    Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
+
+    Serial.println(freeMemory());
+    // the timestamp starts at byte 40 of the received packet and is four bytes,
+    // or two words, long. First, extract the two words:
+    Serial.write("Bien");
+    unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+    unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
+    // combine the four bytes (two words) into a long integer
+    // this is NTP time (seconds since Jan 1 1900):
+    unsigned long secsSince1900 = highWord << 16 | lowWord;
+    const unsigned long seventyYears = 2208988800UL;
+    // subtract seventy years:
+    unsigned long secsNow = secsSince1900 - seventyYears;
+    return secsNow;
+  }
 }
