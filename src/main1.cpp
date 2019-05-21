@@ -7,19 +7,20 @@
 
 //Se podrá poner comprobadores de espacios y demás errores a la hora de crear el config.ini,
 //por ahora no estan implementados.
-unsigned long oldtime = 0;
+unsigned long oldtime = 0, extendTime = 0;
 unsigned long epoch;
 //Declaración variables para el Header, en el setup se inicializarán.
-String subsystem = "", cicle = "",responsible = "", objective = "", baseDirectory = "", backupBaseDirectory = "", tempPeriod = "", pressurePeriod = "";
+String subsystem = "LakeShore218",responsible = "Pedro Borges Santamaría", objective = "Breve Descripción del aparato", baseDirectory = "C:\\Hola", backupBaseDirectory = "c:\\Holi", tempPeriod = "30", pressurePeriod = "30";
 //Declaración variables para el Monitor 1, en el setup se inicializarán.
-String port1 = "", magnitude = "", type = "";
+String port1 = "COM3", type = "LSXXX", magnitude = "temperature";
+char magn[7];
 const int CANALESSIZE = 8;
 String canales1[8] = {"Temp1","Temp2","Temp3","Temp4","Temp5","Temp6","Temp7","Temp8"};
 String temperaturas = "";
 // telnet defaults to port 23
 EthernetServer server(80);
-boolean puede = false, puede2= false, puede3= false, stop = false, stop2 = false, stop3 = false;
-int secs = 0;
+boolean puede = false, stop = false;
+int secs = 0, cicle = 10;
 
 unsigned int localPort = 8888;
 const int NTP_PACKET_SIZE = 48;
@@ -43,8 +44,6 @@ void sendNTPpacket(){
     packetBuffer[13]  = 0x4E;
     packetBuffer[14]  = 49;
     packetBuffer[15]  = 52;
-    Serial.println(freeMemory());
-
     SD.end();
     // todos los campos del NTP tienen valores, asíque ahora
     // puedes enviar un mensaje pidiendo la fecha y hora
@@ -97,6 +96,9 @@ void setup() {
    if(SD.exists("lake3.jso")){
      SD.remove("lake3.jso");
    }
+   if(SD.exists("ModeloFinal.txt")){
+     SD.remove("ModeloFinal.txt");
+   }
    secs = 0;
 
   // You can use Ethernet.init(pin) to configure the CS pin
@@ -132,7 +134,7 @@ void setup() {
         while(client.available()){
           d = client.read();
           clientRequest += d;
-          if(clientRequest.indexOf("/ajax-upload")>0 && currentLineIsBlank && d== '\n'){
+          if(clientRequest.indexOf("/GET / ")>0 && currentLineIsBlank && d== '\n'){
             if(clientRequest.indexOf("[Header]")>0){
               int index;
               if ((index = clientRequest.lastIndexOf("Subsystem= "))>0) {
@@ -141,7 +143,7 @@ void setup() {
               }
               if((index = clientRequest.lastIndexOf("Cicle= "))>0){
                 int lastindex = clientRequest.indexOf("\nResponsible");
-                cicle = clientRequest.substring(index,lastindex);
+                cicle = clientRequest.substring(index,lastindex).toInt();
               }
               if((index = clientRequest.lastIndexOf("Responsible= "))>0){
                 int lastindex = clientRequest.indexOf("\nObjective");
@@ -169,88 +171,196 @@ void setup() {
                 clientRequest = "[MONITOR1]\n";
               }
             }
+            //Cuando se alcance el index del monitor, se empezarán a recoger los datos correspondientes al monitor.
             if(clientRequest.indexOf("[MONITOR1]")>0){
               int index;
+              //Empezando por el puerto de entrada.
               if((index = clientRequest.lastIndexOf("PORT= "))>0){
                 int lastindex = clientRequest.indexOf("\nMagnitude");
                 port1 = clientRequest.substring(index,lastindex);
               }
+              //Seguido de la magnitud que se desea recoger.
               if((index = clientRequest.lastIndexOf("Magnitude= "))>0){
                 int lastindex = clientRequest.indexOf("\nType");
                 magnitude = clientRequest.substring(index,lastindex);
+                if(magnitude.equals("temperature")){
+                  magn[0] = 'K';
+                  magn[1] = 'R';
+                  magn[2] = 'D';
+                  magn[3] = 'G';
+                  magn[4] = '?';
+                  magn[5] = '\r';
+                  magn[6] = '\n';
+                }else if(magnitude.equals("pressure")){
+                  //Aqui se añadirá el codigo para medir la presión.
+                  //magnitude =
+                }
               }
+              //El tipo de aparato de medición, por defecto Lakeshore218
               if((index = clientRequest.lastIndexOf("Type= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL1");
                 type = clientRequest.substring(index,lastindex);
               }
+              //Y por último los nombres de los canales, a los que no se les haya puesto un nombre no saldrán en la gráfica.
+              //Los nombres tienen que tener 9 caracteres de máx. y no pueden ser iguales.
               if((index = clientRequest.lastIndexOf("CHANNEL1= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL2");
                 if(!clientRequest.substring(index,lastindex).equals("")){
-                  //canales1[0] = clientRequest.substring(index,lastindex);
+                  canales1[0] = clientRequest.substring(index,lastindex);
                 }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL2= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL3");
                 if(!clientRequest.substring(index,lastindex).equals("")){
-                  //canales1[1] = clientRequest.substring(index,lastindex);
+                  canales1[1] = clientRequest.substring(index,lastindex);
                 }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL3= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL4");
                 if(!clientRequest.substring(index,lastindex).equals("")){
-                  //canales1[2] = clientRequest.substring(index,lastindex);
+                  canales1[2] = clientRequest.substring(index,lastindex);
                 }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL4= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL5");
                 if(!clientRequest.substring(index,lastindex).equals("")){
-                  //canales1[3] = clientRequest.substring(index,lastindex);
+                  canales1[3] = clientRequest.substring(index,lastindex);
                 }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL5= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL6");
                 if(!clientRequest.substring(index,lastindex).equals("")){
-                  //canales1[4] = clientRequest.substring(index,lastindex);
+                  canales1[4] = clientRequest.substring(index,lastindex);
                 }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL6= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL7");
                 if(!clientRequest.substring(index,lastindex).equals("")){
-                  //canales1[5] = clientRequest.substring(index,lastindex);
+                  canales1[5] = clientRequest.substring(index,lastindex);
                 }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL7= "))>0){
                 int lastindex = clientRequest.indexOf("\nCHANNEL8");
                 if(!clientRequest.substring(index,lastindex).equals("")){
-                  //canales1[6] = clientRequest.substring(index,lastindex);
+                  canales1[6] = clientRequest.substring(index,lastindex);
                 }
               }
               if((index = clientRequest.lastIndexOf("CHANNEL8= "))>0){
-                int lastindex = clientRequest.indexOf("\n[MONITOR2]");
+                int lastindex = clientRequest.indexOf("\n[END]");
                 if(!clientRequest.substring(index,lastindex).equals("")){
-                  //canales1[7] = clientRequest.substring(index,lastindex);
+                  canales1[7] = clientRequest.substring(index,lastindex);
                 }
               }
             }
           }
         }
+      //Una vez que la recogida de elementes a terminado, se pasará a terminar el setup.
       Serial.println("Todo bien.");
       client.stop();
       }
     }
+  //En caso de que haya fallado se cierra el cliente.
   client.stop();
-  //Esto generará el array de canales, que posteriormente a la hora de grabarse en la SD, será cuando se decidirá cuales serán escritos y cuales no.
-  //Se decidirá cuales se escriben usando las variables boolean iniciadas globalmente para ello.
+  //Se recoge el tiempo desde el arranque del arduino.
   oldtime = millis();
+  //Se recoge el tiempo actual.
   epoch = getTimeEpoch();
+  File modeloFinal = SD.open("ModeloFinal.txt", FILE_WRITE);
+  modeloFinal.print("Subsistema o prototipo: ");
+  modeloFinal.print(subsystem);
+  modeloFinal.print("\tCiclado: ");
+  modeloFinal.println(cicle);
+  modeloFinal.print("Responsable: ");
+  modeloFinal.println(responsible);
+  modeloFinal.print("Objetivo de la prueba: ");
+  modeloFinal.println(objective);
+  modeloFinal.print("Inicio: ");
+  modeloFinal.print("\t");
+  modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+  modeloFinal.print(':');
+  if (((epoch % 3600) / 60) < 10) {
+    // In the first 10 minutes of each hour, we'll want a leading '0'
+    modeloFinal.print('0');
+  }
+  modeloFinal.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+  modeloFinal.print(':');
+  if ((epoch % 60) < 10) {
+    // In the first 10 seconds of each minute, we'll want a leading '0'
+    modeloFinal.print('0');
+  }
+  modeloFinal.print(epoch % 60);
+  modeloFinal.print("\t\tFinal: ");
+  modeloFinal.print("\t");
+  modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+  modeloFinal.print(':');
+  if (((epoch % 3600) / 60) < 10) {
+    // In the first 10 minutes of each hour, we'll want a leading '0'
+    modeloFinal.print('0');
+  }
+  modeloFinal.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+  modeloFinal.print(':');
+  if ((epoch % 60) < 10) {
+    // In the first 10 seconds of each minute, we'll want a leading '0'
+    modeloFinal.print('0');
+  }
+  modeloFinal.print("\t\tMuestreo: ");
+  modeloFinal.println(tempPeriod);
+  modeloFinal.println("\n");
+  modeloFinal.print(port1);
+  modeloFinal.print(": ");
+  modeloFinal.println(type);
+  modeloFinal.close();
+  Serial.print("Subsistema o prototipo: ");
+  Serial.print(subsystem);
+  Serial.print("\tCiclado: ");
+  Serial.println(cicle);
+  Serial.print("Responsable: ");
+  Serial.println(responsible);
+  Serial.print("Objetivo de la prueba: ");
+  Serial.println(objective);
+  Serial.print("Inicio: ");
+  Serial.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+  Serial.print(':');
+  if (((epoch % 3600) / 60) < 10) {
+    // In the first 10 minutes of each hour, we'll want a leading '0'
+    Serial.print('0');
+  }
+  Serial.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+  Serial.print(':');
+  if ((epoch % 60) < 10) {
+    // In the first 10 seconds of each minute, we'll want a leading '0'
+    Serial.print('0');
+  }
+  Serial.print(epoch % 60);
+  Serial.print("\t\tFinal: ");
+  Serial.print("\t");
+  Serial.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+  Serial.print(':');
+  if (((epoch % 3600) / 60) < 10) {
+    // In the first 10 minutes of each hour, we'll want a leading '0'
+    Serial.print('0');
+  }
+  Serial.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+  Serial.print(':');
+  if ((epoch % 60) < 10) {
+    // In the first 10 seconds of each minute, we'll want a leading '0'
+    Serial.print('0');
+  }
+  Serial.print("\t\tMuestreo: ");
+  Serial.println(tempPeriod);
+  Serial.println("\n");
+  Serial.print(port1);
+  Serial.print(": ");
+  Serial.println(type);
+
   Serial.println("Todo bien.");
 }
 
-
+//Este método crea el webServer que contendrá las gráficas.
 void webServer(){
   delay(2);
 
-  boolean html = false, json = false, json2 = false, json3 = false;
+  boolean html = false, json = false;
   EthernetClient client = server.available();
   if (client) {
     boolean currentLineIsBlank = true;
@@ -266,13 +376,6 @@ void webServer(){
           }if(clientRequest.indexOf("/datos.json") > 0 || json){
             json = true;
             clientRequest = "";
-          }/*if(clientRequest.indexOf("/datos2.json") > 0 || html){
-            json2 = true;
-            clientRequest = "";
-          }if(clientRequest.indexOf("/datos3.json") > 0 || html){
-            json3 = true;
-            clientRequest = "";
-          }*/
         }
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
@@ -308,54 +411,17 @@ void webServer(){
           client.println("{\"data\":[");
           File webFile = SD.open("lake.jso",FILE_READ);
           if(webFile){
+            extendTime = millis();
             while(webFile.available()){
               client.write(webFile.read());
             }
             client.println("]}");
             client.println();
-
+            extendTime = millis() - extendTime;
             webFile.close();
           }
           Serial.println("Termine de mandarlo");
           json = false;
-          break;
-        }
-        if(json2 && currentLineIsBlank && d== '\n'){
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: application/json");
-          client.println("Connection: close");
-          client.println();
-          File webFile = SD.open("lake2.jso",FILE_READ);
-          if(webFile){
-            while(webFile.available()){
-              client.write(webFile.read());
-            }
-            client.println("]}");
-            client.println();
-
-            webFile.close();
-          }
-          json2 = false;
-          break;
-        }
-        if(json3 && currentLineIsBlank && d== '\n'){
-          Serial.println("Mande el json");
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: application/json");
-          client.println("Connection: close");
-          client.println();
-          File webFile = SD.open("lake3.jso",FILE_READ);
-          if(webFile){
-            while(webFile.available()){
-              client.write(webFile.read());
-            }
-            client.println("]}");
-            client.println();
-
-            webFile.close();
-          }
-          json3 = false;
-          break;
         }
         if (d == '\n') {
           // you're starting a new line
@@ -365,19 +431,26 @@ void webServer(){
           currentLineIsBlank = false;
         }
       // give the web browser secs to receive the data
+      }
+      delay(1);
+      Serial.println("Se cerro");
+      // close the connection:
+      client.stop();
+      break;
+      }
     }
-    delay(1);
-    Serial.println("Se cerro");
-    // close the connection:
-    client.stop();
-  }
 }
 
 void loop() {
+  if(millis() > 450000){
+    epoch-=10;
+  }
   Ethernet.maintain();
-
-  if(millis()-oldtime > 5000 ){
-    epoch += 5;
+  unsigned long necesario = cicle*1000;
+  if(millis()-oldtime > necesario){
+    oldtime = 0;
+    epoch += cicle+(extendTime/1000);
+    extendTime= 0;
     Serial.println("A medir");
     mediciones(1);
 
@@ -398,7 +471,8 @@ void loop() {
     webServer();
 }
 void mediciones(int puerto){
-  //Seleccionara cada puerto
+  //Como por ahora solo estará disponible un puerto solo existirá una caso en el switch, pero a futuro se podrá extender.
+  //Se recoge el tiempo al empezar la medición;
   oldtime = millis();
   temperaturas = "";
   switch(puerto){
@@ -407,12 +481,11 @@ void mediciones(int puerto){
       Serial1.write("KRDG?\r\n");
       Serial1.println();
       //Con este bucle generaremos el numero de canales necesarios y podremos indicar después que canales queremos mostrar
-      //Así aunque recojamos todos los canales se podrán elegir el muestre y que nombre quieren, usando condicionales de NULL, en las
-      //variables creadas e inicializadas en el setup
-
+      //Así aunque recojamos todos los canales se podrán elegir el muestre y que nombre quieren.
       MatchState ms;
       char patron[7];
       int desplazamiento = 0, aux = 0;
+      Serial.print(freeMemory());
       while(Serial1.available()){
         temperaturas += (char) Serial1.read();
       }
@@ -446,68 +519,44 @@ void mediciones(int puerto){
         Serial.println("SD");
         if(stop){
           Serial.println("Hola");
-          //sendNTPpacket(); // send an NTP packet to a time server
-          //delay(1000);
-          // wait to see if a reply is available
-          //if(Udp.parsePacket()){
-            lakeshoreData.print("{");
-            lakeshoreData.print("\"secs\":\"");
-            /*Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
-
-            Serial.println(freeMemory());
-            // the timestamp starts at byte 40 of the received packet and is four bytes,
-            // or two words, long. First, extract the two words:
-            Serial.write("Bien");
-            unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-            unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-            // combine the four bytes (two words) into a long integer
-            // this is NTP time (seconds since Jan 1 1900):
-            unsigned long secsSince1900 = highWord << 16 | lowWord;
-            // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
-            const unsigned long seventyYears = 2208988800UL;
-            // subtract seventy years:
-            unsigned long epoch = secsSince1900 - seventyYears;
-            */
-            /*lakeshoreData.print(((epoch+3600) % 2629743UL) / 86400L);
-            Serial.print(((epoch+3600) % 2629743UL) / 86400L);
-            lakeshoreData.print("-");
-            Serial.print("-");
-            lakeshoreData.print(((epoch+3600) % 31556926UL) / 2629743UL);
-            Serial.print(((epoch+3600) % 31556926UL) / 2629743UL);
-            lakeshoreData.print("-");
-            Serial.print("-");
-            lakeshoreData.print((epoch+3600) % 31556926UL);
-            Serial.print((epoch+3600) % 31556926UL);
-            lakeshoreData.print("\t");
-            Serial.print("\t");*/
-            lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
-            lakeshoreData.print(':');
-            Serial.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
-            Serial.print(':');
-            if (((epoch % 3600) / 60) < 10) {
-              // In the first 10 minutes of each hour, we'll want a leading '0'
-              lakeshoreData.print('0');
-              Serial.print('0');
-            }
-            lakeshoreData.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
-            lakeshoreData.print(':');
-            Serial.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
-            Serial.print(':');
-            if ((epoch % 60) < 10) {
-              // In the first 10 seconds of each minute, we'll want a leading '0'
-              lakeshoreData.print('0');
-              Serial.print('0');
-            }
-            lakeshoreData.print(epoch % 60);
-            Serial.print(epoch % 60);// print the second
-            //Añadir fecha a la hora mostrada.
-            lakeshoreData.print("\",");
-          /*}else{
-            Serial.println("No funciono");
-            stop = false;
-          }*/
+          lakeshoreData.print("{");
+          lakeshoreData.print("\"secs\":\"");
+          /*lakeshoreData.print(((epoch+3600) % 2629743UL) / 86400L);
+          Serial.print(((epoch+3600) % 2629743UL) / 86400L);
+          lakeshoreData.print("-");
+          Serial.print("-");
+          lakeshoreData.print(((epoch+3600) % 31556926UL) / 2629743UL);
+          Serial.print(((epoch+3600) % 31556926UL) / 2629743UL);
+          lakeshoreData.print("-");
+          Serial.print("-");
+          lakeshoreData.print((epoch+3600) % 31556926UL);
+          Serial.print((epoch+3600) % 31556926UL);
+          lakeshoreData.print("\t");
+          Serial.print("\t");*/
+          lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+          lakeshoreData.print(':');
+          Serial.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+          Serial.print(':');
+          if (((epoch % 3600) / 60) < 10) {
+            // In the first 10 minutes of each hour, we'll want a leading '0'
+            lakeshoreData.print('0');
+            Serial.print('0');
+          }
+          lakeshoreData.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+          lakeshoreData.print(':');
+          Serial.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+          Serial.print(':');
+          if ((epoch % 60) < 10) {
+            // In the first 10 seconds of each minute, we'll want a leading '0'
+            lakeshoreData.print('0');
+            Serial.print('0');
+          }
+          lakeshoreData.print(epoch % 60);
+          Serial.print(epoch % 60);// print the second
+          //Añadir fecha a la hora mostrada.
+          lakeshoreData.print("\",");
         }
-
+        //Este bucle se encargará de crear
         desplazamiento = 0;
         secs += 1;
         for (int i = 0; i < 8; i++){
@@ -544,7 +593,7 @@ void mediciones(int puerto){
   }
 
 }
-
+//Metodo que recibe mediante NTP la fecha actual en segundos desde el 1 de Enero de 1970
 unsigned long getTimeEpoch(){
   sendNTPpacket(); // send an NTP packet to a time server
   delay(1000);
@@ -565,5 +614,7 @@ unsigned long getTimeEpoch(){
     // subtract seventy years:
     unsigned long secsNow = secsSince1900 - seventyYears;
     return secsNow;
+  }else{
+    return 0;
   }
 }
