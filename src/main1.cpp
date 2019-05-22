@@ -205,11 +205,9 @@ void webServer(){
 }
 
 void loop() {
-  if(millis() > 86.400.000 && dia‬){
+
+  if(millis() > 86400000UL && dia){
     epoch = getTimeEpoch();
-  }
-  if(millis() > 450000){
-    epoch-=10;
   }
   Ethernet.maintain();
   unsigned long necesario = tempPeriod*1000;
