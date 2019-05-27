@@ -7,7 +7,7 @@
 
 //Se podrá poner comprobadores de espacios y demás errores a la hora de crear el config.ini,
 //por ahora no estan implementados.
-unsigned long oldtime = 0, extendTime = 0;
+unsigned long oldtime = 0, extendTime = 0, cambioFichero = 0, tiempoMedicion = 0;
 unsigned long epoch;
 //Declaración variables para el Header, en el setup se inicializarán.
 String subsystem = "",responsible = "", objective = "";
@@ -16,11 +16,11 @@ String port1 = "", type = "", magnitude = "";
 char magn[7];
 const int CANALESSIZE = 8;
 String canales1[8] = {"","","","","","","",""};
-String temperaturas = "";
+String temperaturas = "", nomFichero = "lake";
 // telnet defaults to port 23
 EthernetServer server(80);
-boolean puede = false, stop = false, dia = true;
-int secs = 0, cicle = 0,tempPeriod = 0, pressurePeriod = 0;
+boolean puede = false, stop = false, dia = true, holi= true;
+int secs = 0, cicle = 0,tempPeriod = 0, pressurePeriod = 0,numFichero= 0;
 
 unsigned int localPort = 8888;
 const int NTP_PACKET_SIZE = 48;
@@ -67,8 +67,8 @@ void setup() {
    if(SD.exists("lake3.jso")){
      SD.remove("lake3.jso");
    }
-   if(SD.exists("ModeloFinal.txt")){
-     SD.remove("ModeloFinal.txt");
+   if(SD.exists("final.csv")){
+     SD.remove("final.csv");
    }
    secs = 0;
 
@@ -92,7 +92,7 @@ void setup() {
     if (Ethernet.linkStatus() == LinkOFF) {
     }
   }
-  //Serial.print(Ethernet.localIP());
+  Serial.print(Ethernet.localIP());
   server.begin();
   Udp.begin(localPort);
   //Se recoge el tiempo desde el arranque del arduino.
@@ -101,13 +101,23 @@ void setup() {
   while(epoch == 0){
     epoch = getTimeEpoch();
   }
+  if(SD.exists("final.csv")){
+    File modeloFinal = SD.open("final.csv", FILE_READ);
+    String config = "";
+    while(modeloFinal.available()){
+      char ltr = modeloFinal.read();
+      config += ltr;
+    }
+    iniciarConfig(config);
+    config = "";
+  }
 }
 
 //Este método crea el webServer que contendrá las gráficas.
 void webServer(){
   delay(2);
 
-  boolean html = false, json = false ,upload = false;
+  boolean html = false, json = false ,upload = false, csv = false;
   EthernetClient client = server.available();
   if (client) {
     boolean currentLineIsBlank = true;
@@ -116,21 +126,34 @@ void webServer(){
         char d;
         while(client.available()){
           d = client.read();
+          Serial.write(d);
           clientRequest += d;
+          if(clientRequest.indexOf("Connection: keep-alive")>0){
+            if(clientRequest.indexOf("boundary")>0){
+              if(clientRequest.indexOf("[END]")>0){
+                iniciarConfig(clientRequest.substring(clientRequest.indexOf("[Header]"),clientRequest.lastIndexOf("[END]")));
+                clientRequest = "";
+                html = true;
+              }
+            }
+            else if(clientRequest.indexOf(" / HTTP/1.1")>0){
+              html = true;
+              clientRequest = "";
+            }
+            else if(clientRequest.indexOf(" /upload.html HTTP/1.1")>0){
+              upload= true;
+              clientRequest= "";
+            }
 
-          if(clientRequest.indexOf("/ HTTP/1.1")>0){
-            upload = true;
-            clientRequest = "";
-          }
-          if(clientRequest.indexOf("[END]")>0){
-            iniciarConfig(clientRequest.substring(clientRequest.indexOf("[Header]"),clientRequest.lastIndexOf("[END]")));
-            clientRequest = "";
-            html = true;
-          }
-          if(clientRequest.indexOf("/datos.json") > 0){
-            json = true;
-            clientRequest = "";
-          }
+            else if(clientRequest.indexOf("/datos.json") > 0){
+              json = true;
+              clientRequest = "";
+            }
+            else if(clientRequest.indexOf("/datosFinal.csv")> 0){
+              csv = true;
+              clientRequest = "";
+            }
+        }
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
         // so you can send a reply
@@ -142,11 +165,9 @@ void webServer(){
           client.println();
           printUploadForm(client);
           upload = false;
-          //Serial.println("TERMINO");
           break;
         }
         if (d == '\n' && currentLineIsBlank && html) {
-          //Serial.println("Mande el html");
           // send a standard http response header
           client.println("HTTP/1.1 200 OK");  // the connection will be closed after completion of the response
           client.println("Content-Type: text/html");  // refresh the page automatically every 5 sec
@@ -173,7 +194,7 @@ void webServer(){
           client.println();
 
           client.println("{\"data\":[");
-          File webFile = SD.open("lake.jso",FILE_READ);
+          File webFile = SD.open(nomFichero+".jso",FILE_READ);
           if(webFile){
             extendTime = millis();
             while(webFile.available()){
@@ -187,6 +208,25 @@ void webServer(){
           //Serial.println("Termine de mandarlo");
           json = false;
         }
+        if (d == '\n' && currentLineIsBlank && csv) {
+          // send a standard http response header
+          client.println("HTTP/1.1 200 OK");  // the connection will be closed after completion of the response
+          client.println("Content-Type: application/CSV");  // refresh the page automatically every 5 sec
+          client.println("Connection:close");
+          client.println();
+          //Enviar pagina WebServer
+          File webFile = SD.open("final.csv");
+          if(webFile){
+            while(webFile.available()){
+              client.write(webFile.read());
+            }
+          webFile.close();
+        }
+          csv = false;
+          //Serial.println("Termine de mandarlo");
+          break;
+        }
+
         if (d == '\n') {
           // you're starting a new line
           currentLineIsBlank = true;
@@ -205,8 +245,16 @@ void webServer(){
 }
 
 void loop() {
+  //Cambio de fichero cada 5 mins ahora mismo
+  if(millis()-cambioFichero > 300000){
+    numFichero++;
+    nomFichero = "lake";
+    nomFichero+= numFichero;
+    cambioFichero = millis();
+    Serial.print(nomFichero);
+  }
 
-  if(millis() > 86400000UL && dia){
+  if(millis() > 86400000UL ){
     epoch = getTimeEpoch();
   }
   Ethernet.maintain();
@@ -270,14 +318,18 @@ void mediciones(int puerto){
       }else{
         stop = false;
       }
-
-
-      if(SD.exists("lake.jso") && puede && stop){
-       File paraComa = SD.open("lake.jso", FILE_WRITE);
+      if(SD.exists(nomFichero+".jso") && puede && stop){
+       File paraComa = SD.open(nomFichero+".jso",FILE_WRITE);
        paraComa.println(",");
        paraComa.close();
       }
-      File lakeshoreData = SD.open("lake.jso",FILE_WRITE);
+      File lakeshoreData = SD.open(nomFichero+".jso",FILE_WRITE);
+      File modeloFinal = SD.open("final.csv",FILE_WRITE);
+
+      if(holi){
+        tiempoMedicion = millis();
+        holi = false;
+      }
 
       if(lakeshoreData){
         //Serial.println("SD");
@@ -299,26 +351,42 @@ void mediciones(int puerto){
           //Serial.print("\t");*/
           lakeshoreData.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
           lakeshoreData.print(':');
+          if((millis()-tiempoMedicion)<1000){
+            modeloFinal.print(0);
+          }else{
+            modeloFinal.print(((millis()-tiempoMedicion)/1000));
+          }
+          modeloFinal.print(", ");
+          modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+          modeloFinal.print(':');
+
           //Serial.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
           //Serial.print(':');
           if (((epoch % 3600) / 60) < 10) {
             // In the first 10 minutes of each hour, we'll want a leading '0'
             lakeshoreData.print('0');
+            modeloFinal.print('0');
             //Serial.print('0');
           }
           lakeshoreData.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
           lakeshoreData.print(':');
+          modeloFinal.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+          modeloFinal.print(':');
           //Serial.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
           //Serial.print(':');
           if ((epoch % 60) < 10) {
             // In the first 10 seconds of each minute, we'll want a leading '0'
             lakeshoreData.print('0');
             //Serial.print('0');
+            modeloFinal.print('0');
+
           }
           lakeshoreData.print(epoch % 60);
           //Serial.print(epoch % 60);// print the second
           //Añadir fecha a la hora mostrada.
           lakeshoreData.print("\",");
+          modeloFinal.print(epoch % 60);
+          modeloFinal.print(",");
         }
         //Este bucle se encargará de crear
         desplazamiento = 0;
@@ -330,11 +398,13 @@ void mediciones(int puerto){
             lakeshoreData.print("\":\"");
             for (int j = 0; j < 7; j++) {
               lakeshoreData.print(temperaturas[j+desplazamiento]);
+              modeloFinal.print(temperaturas[j+desplazamiento]);
             }if (i < CANALESSIZE-1){
               if(canales1[i+1].equals("")){
                 lakeshoreData.print("\"");
               }else{
                 lakeshoreData.print("\",");
+                modeloFinal.print(", ");
               }
             }else{
               lakeshoreData.print("\"");
@@ -349,11 +419,13 @@ void mediciones(int puerto){
         }
       }
       lakeshoreData.close();
+      modeloFinal.println();
+      modeloFinal.close();
       break;
     }
 
     default:
-      Serial.write("Uys algo fui mal.");
+      Serial.write("HOLA");
   }
 
 }
@@ -382,9 +454,6 @@ unsigned long getTimeEpoch(){
   }
 }
 void printUploadForm(EthernetClient client) {
-  //Serial.println("printUploadForm");
-  // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-  // and a content-type so the client knows what's coming, then a blank line:
   client.println("<!DOCTYPE html>");
   client.println("<html lang=\"es\">");
   client.println("<head>");
@@ -394,10 +463,10 @@ void printUploadForm(EthernetClient client) {
   client.println("</head>");
   client.println("<body>");
   client.println();
-  client.println("<form action=\"upload.html\" method=\"post\" enctype=\"multipart/form-data\">");
+  client.println("<form action=\"/\" method=\"post\" enctype=\"multipart/form-data\">");
   client.println("Select image to upload:");
   client.println("<input type=\"file\" name=\"fileToUpload\" id=\"fileToUpload\">");
-  client.println("<input type=\"submit\" value=\"Upload Image\" name=\"submit\">");
+  client.println("<input type=\"submit\" value=\"Upload Config\" name=\"submit\">");
   client.println("</form>");
   client.println();
   client.println("</body>");
@@ -442,7 +511,7 @@ void iniciarConfig(String clientRequest){
   }
   if((index = clientRequest.lastIndexOf("Cicle= "))>0){
     int lastindex = clientRequest.indexOf("\nResponsible");
-    cicle = clientRequest.substring((index+7),lastindex).toInt();
+    cicle = clientRequest.substring((index+7),lastindex-1).toInt();
   }
   if((index = clientRequest.lastIndexOf("Responsible= "))>0){
     int lastindex = clientRequest.indexOf("\nObjective");
@@ -540,7 +609,7 @@ void iniciarConfig(String clientRequest){
         canales1[7] = clientRequest.substring(index+10,lastindex-1);
       }
     }
-/*
+
   Serial.println(subsystem);
   Serial.println(cicle);
   Serial.println(responsible);
@@ -558,55 +627,75 @@ void iniciarConfig(String clientRequest){
   Serial.println(canales1[5]);
   Serial.println(canales1[6]);
   Serial.println(canales1[7]);
-*/
+
 
 
   clientRequest = "";
-  File modeloFinal = SD.open("ModeloFinal.txt", FILE_WRITE);
-  modeloFinal.print("Subsistema o prototipo: ");
+  SD.remove("final.csv");
+  File modeloFinal = SD.open("final.csv", FILE_WRITE);
+  modeloFinal.println("Subsistema o prototipo, Ciclado, Responsable, Objetivo de la prueba, Inicio, Final, Muestreo, COM1, Tipo");
   modeloFinal.print(subsystem);
-  modeloFinal.print("\tCiclado: ");
+  modeloFinal.print(", ");
   //Serial.println(cicle);
-  modeloFinal.println(cicle);
-  modeloFinal.print("Responsable: ");
-  modeloFinal.println(responsible);
-  modeloFinal.print("Objetivo de la prueba: ");
-  modeloFinal.println(objective);
-  modeloFinal.print("Inicio: ");
-  modeloFinal.print("\t");
+  modeloFinal.print(cicle);
+  modeloFinal.print(", ");
+  modeloFinal.print(responsible);
+  modeloFinal.print(", ");
+  modeloFinal.print(objective);
+  modeloFinal.print(", ");
   modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
-  modeloFinal.print(':');
+  modeloFinal.print(":");
   if (((epoch % 3600) / 60) < 10) {
     // In the first 10 minutes of each hour, we'll want a leading '0'
-    modeloFinal.print('0');
+    modeloFinal.print("0");
   }
   modeloFinal.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
-  modeloFinal.print(':');
+  modeloFinal.print(":");
   if ((epoch % 60) < 10) {
     // In the first 10 seconds of each minute, we'll want a leading '0'
-    modeloFinal.print('0');
+    modeloFinal.print("0");
   }
-
-  modeloFinal.print("\t\tFinal: ");
-  modeloFinal.print("\t");
+  modeloFinal.print(epoch % 60);
+  modeloFinal.print(", ");
   modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
-  modeloFinal.print(':');
+  modeloFinal.print(":");
   if (((epoch % 3600) / 60) < 10) {
     // In the first 10 minutes of each hour, we'll want a leading '0'
-    modeloFinal.print('0');
+    modeloFinal.print("0");
   }
   modeloFinal.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
-  modeloFinal.print(':');
+  modeloFinal.print(":");
   if ((epoch % 60) < 10) {
     // In the first 10 seconds of each minute, we'll want a leading '0'
     modeloFinal.print('0');
   }
   modeloFinal.print(epoch % 60);
-  modeloFinal.print("\t\tMuestreo: ");
-  modeloFinal.println(tempPeriod);
-  modeloFinal.println("\n");
+  modeloFinal.print(", ");
+  modeloFinal.print(tempPeriod);
+  modeloFinal.print(", ");
   modeloFinal.print(port1);
-  modeloFinal.print(": ");
+  modeloFinal.print(", ");
   modeloFinal.println(type);
+  modeloFinal.println();
+  modeloFinal.print("t(seg), Hora PC, ");
+  for (size_t i = 0; i < 8; i++) {
+    if(!canales1[i].equals("")){
+      modeloFinal.print(canales1[i]);
+      if(i<7){
+        if(!canales1[i+1].equals("")){
+          modeloFinal.print(", ");
+        }
+      }
+    }
+
+  }
+  modeloFinal.println();
   modeloFinal.close();
+  modeloFinal = SD.open("final.csv", FILE_READ);
+  while(modeloFinal.available()){
+    Serial.write(modeloFinal.read());
+
+  }
+  modeloFinal.close();
+  Serial.println("HOLAAA");
 }

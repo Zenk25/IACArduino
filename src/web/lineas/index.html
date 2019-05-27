@@ -45,103 +45,27 @@
             xLabelAngle: 45
           });
       });
-    /*  var chart2;
-      $.getJSON("datos.json", function (json) {
-        var data = json.data;
-        chart = Morris.Line({
-            element: 'segundoGrafico',
-            data: data,
-            xkey: 'secs',
-            xLabels: 'Segundos',
-            // A list of names of data record attributes that contain y-values.
-            //Los 8 canales irán en las y.
-            ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'],
-            // Labels for the ykeys -- will be displayed when you hover over the
-            // chart.
-            labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'],
-            resize: true,
-            pointSize: 0,
-            hideHover : true,
-            smooth: false,
-            parseTime: false,
-            xLabelAngle: 45
-          });
-      });
-      var chart3;
-      $.getJSON("datos.json", function (json) {
-        var data = json.data;
-        chart = Morris.Line({
-            element: 'tercerGrafico',
-            data: data,
-            xkey: 'secs',
-            xLabels: 'Segundos',
-            // A list of names of data record attributes that contain y-values.
-            //Los 8 canales irán en las y.
-            ykeys: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'],
-            // Labels for the ykeys -- will be displayed when you hover over the
-            // chart.
-            labels: ['Temp1','Temp2','Temp3','Temp4','Temp5','Temp6','Temp7','Temp8'],
-            resize: true,
-            pointSize: 0,
-            hideHover : true,
-            smooth: false,
-            parseTime: false,
-            xLabelAngle: 45
-          });
-      });*/
 
       function update() {
         $.getJSON("datos.json", function (json){
           chart.setData(json.data);
         })
       };
-      /*function update2() {
-        $.getJSON("datos.json", function (json){
-          chart.setData(json.data);
-        })
-      };
-      function update3() {
-        $.getJSON("datos.json", function (json){
-          chart.setData(json.data);
-        })
-      };*/
 
-
-/*
-      setInterval(update2, 60000);
-      setInterval(update3, 60000);*/
       setInterval(update, 60000);
       </script>
+      <a class = "brn btn-succes" href = "upload.html">Cargar configuración</a>
         <div class="container">
-          <h1>Gráficas</h1>
+          <h1>Arduino</h1>
           <div class="row">
             <div class="col-md-12">
-              <h2>Primer Grupo</h2>
+              <h2>Canales de medición</h2>
               <div id="primerGrafico"></div>
             </div>
           </div>
-          <a class = "btn btn-succes" href="datos.json" download="Lake.json">Descargar</a>
+          <a class = "btn btn-succes" href="datosFinal.csv" download="Lake.csv">Descargar</a>
         </div>
-        <div class="container">
-          <h1>Gráficas</h1>
-          <div class="row">
-            <div class="col-md-12">
-              <h2>Segundo Grupo</h2>
-              <div id="segundoGrafico"></div>
-            </div>
-          </div>
-          <a class = "btn btn-succes" href="datos.json" download="Lake.json">Descargar</a>
-        </div>
-        <div class="container">
-          <h1>Gráficas</h1>
-          <div class="row">
-            <div class="col-md-12">
-              <h2>Tercer Grupo</h2>
-              <div id="tercerGrafico"></div>
-            </div>
-          </div>
-          <a class = "btn btn-succes" href="datos.json" download="Lake.json">Descargar</a>
-        </div>
+
 
     </body>
 </html>
