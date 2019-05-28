@@ -84,7 +84,17 @@ void setup() {
   //Ethernet.init(20);  // Teensy++ 2.0
   //Ethernet.init(15);  // ESP8266 with Adafruit Featherwing Ethernet
   //Ethernet.init(33);  // ESP32 with Adafruit Featherwing Ethernet
-
+  //Para que la conexion este fija descomente el siguiente codigo,  introduciendo los datos necesarios.
+  /*if (Ethernet.begin(mac,ip,dns,gateway,subnet) == 0) {
+    // Check for Ethernet hardware present
+    if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+      while (true) {
+        delay(1); // do nothing, no point running without Ethernet hardware
+      }
+    }
+    if (Ethernet.linkStatus() == LinkOFF) {
+    }
+  }*/
   // start the Ethernet connection:
   if (Ethernet.begin(mac) == 0) {
     // Check for Ethernet hardware present
