@@ -26,7 +26,7 @@ String temperaturas = "", nomFichero = "lake";
 // telnet defaults to port 23
 EthernetServer server(80);
 boolean puede = false, stop = false, dia = true, holi= true, holi2 = false;
-int secs = 0, cicle = 0,tempPeriod = 0, pressurePeriod = 0,numFichero= 0, secsInicio = 0;
+int interacciones = 0, cicle = 0,tempPeriod = 0, pressurePeriod = 0,numFichero= 0, secsInicio = 0;
 //Variables necesarias para el envio de paquetes al servidor NTP
 unsigned int localPort = 8888;
 char timeServer[] = "pool.ntp.org";
@@ -55,10 +55,9 @@ void setup() {
        return;    // init failed
    }
    // check for index.htm file
-   /*if (!SD.exists("lineas/index.htm")) {
-     Serial.write("NANI");
+   if (!SD.exists("lineas/index.htm")) {
        return;  // can't find index file
-   }*/
+   }
    File dirJson = SD.open("json/");
    File file;
    while(true){
@@ -75,15 +74,7 @@ void setup() {
    }
    file.close();
    dirJson.close();
-   secs = 0;
-
-  // You can use Ethernet.init(pin) to configure the CS pin
-  //Ethernet.init(10);  // Most Arduino shields
-  //Ethernet.init(5);   // MKR ETH shield
-  //Ethernet.init(0);   // Teensy 2.0
-  //Ethernet.init(20);  // Teensy++ 2.0
-  //Ethernet.init(15);  // ESP8266 with Adafruit Featherwing Ethernet
-  //Ethernet.init(33);  // ESP32 with Adafruit Featherwing Ethernet
+   interacciones = 0;
   //Para que la conexion este fija descomente el siguiente codigo,  introduciendo los datos necesarios.
   /*if (Ethernet.begin(mac,ip,dns,gateway,subnet) == 0) {
     // Check for Ethernet hardware present
@@ -281,13 +272,13 @@ void loop() {
 
   }
 
-  if(secs%10 == 0 && secs != 0){
+  if(interacciones%10 == 0 && interacciones != 0){
     SD.end();
     Serial1.end();
     //Serial.println("Cerro la conexion");
     Serial1.begin(9600,SERIAL_7O1);
     SD.begin(4);
-    secs++;
+    interacciones++;
     stop = false;
   }
     webServer();
@@ -404,7 +395,7 @@ void mediciones(int puerto){
         }
         //Este bucle se encargará de crear
         desplazamiento = 0;
-        secs += 1;
+        interacciones += 1;
         for (int i = 0; i < 8; i++){
           if(stop && !canales1[i].equals("")){
             lakeshoreData.print("\"");
