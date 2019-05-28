@@ -5,26 +5,30 @@
 #include <MemoryFree.h>
 #include <Regexp.h>
 
-//Se podrá poner comprobadores de espacios y demás errores a la hora de crear el config.ini,
-//por ahora no estan implementados.
-unsigned long oldtime = 0, extendTime = 0, cambioFichero = 0, tiempoMedicion = 0;
-unsigned long epoch;
-//Declaración variables para el Header, en el setup se inicializarán.
-String subsystem = "",responsible = "", objective = "";
-//Declaración variables para el Monitor 1, en el setup se inicializarán.
-String port1 = "", type = "", magnitude = "";
-char magn[7];
-String formatNum;
+//Canales totales, manejables por la aplicación
 const int CANALESSIZE = 8;
+const int NTP_PACKET_SIZE = 48;
+
+//Variables en las que se guardarán milisegundos de tiempo por necesidad.
+unsigned long oldtime = 0, extendTime = 0, cambioFichero = 0, tiempoMedicion = 0;
+//Se guardará el tiempo actual en segundos
+unsigned long epoch;
+//Declaración variables para el Header
+String subsystem = "",responsible = "", objective = "";
+//Declaración variables para el Monitor 1
+String port1 = "", type = "", magnitude = "";
+//Variable que mandará el comando al equipo en cuestión, por ahora solo está implementado para Temperatura
+char magn[7];
+//Variable que guardará el formato desea a la hora de imprimir los datos en el csv
+String formatNum;
 String canales1[8] = {"","","","","","","",""};
 String temperaturas = "", nomFichero = "lake";
 // telnet defaults to port 23
 EthernetServer server(80);
 boolean puede = false, stop = false, dia = true, holi= true, holi2 = false;
 int secs = 0, cicle = 0,tempPeriod = 0, pressurePeriod = 0,numFichero= 0, secsInicio = 0;
-
+//Variables necesarias para el envio de paquetes al servidor NTP
 unsigned int localPort = 8888;
-const int NTP_PACKET_SIZE = 48;
 char timeServer[] = "pool.ntp.org";
 byte packetBuffer[NTP_PACKET_SIZE];
 
@@ -55,6 +59,22 @@ void setup() {
      Serial.write("NANI");
        return;  // can't find index file
    }*/
+   File dirJson = SD.open("json/");
+   File file;
+   while(true){
+     file = dirJson.openNextFile();
+     if(!file){
+       //Serial.println("--Done--");
+       break;
+     }
+     else{
+       String borrar = "json/";
+       borrar += file.name();
+       SD.remove(borrar);
+     }
+   }
+   file.close();
+   dirJson.close();
    secs = 0;
 
   // You can use Ethernet.init(pin) to configure the CS pin
