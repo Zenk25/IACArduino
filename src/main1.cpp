@@ -14,13 +14,14 @@ String subsystem = "",responsible = "", objective = "";
 //Declaración variables para el Monitor 1, en el setup se inicializarán.
 String port1 = "", type = "", magnitude = "";
 char magn[7];
+String formatNum;
 const int CANALESSIZE = 8;
 String canales1[8] = {"","","","","","","",""};
 String temperaturas = "", nomFichero = "lake";
 // telnet defaults to port 23
 EthernetServer server(80);
-boolean puede = false, stop = false, dia = true, holi= true;
-int secs = 0, cicle = 0,tempPeriod = 0, pressurePeriod = 0,numFichero= 0;
+boolean puede = false, stop = false, dia = true, holi= true, holi2 = false;
+int secs = 0, cicle = 0,tempPeriod = 0, pressurePeriod = 0,numFichero= 0, secsInicio = 0;
 
 unsigned int localPort = 8888;
 const int NTP_PACKET_SIZE = 48;
@@ -32,10 +33,10 @@ void printUploadForm(EthernetClient client);
 void mediciones(int puerto);
 unsigned long getTimeEpoch();
 void sendNTPpacket();
-void iniciarConfig(String clientRequest);
+void iniciarConfig(String clientRequest, boolean inicio);
 
 //Esta clase se encargará de recoger las mediciones de los canales.
-
+//poner codigo para la ip fija
 void setup() {
   byte mac[] = {
     0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02
@@ -44,10 +45,7 @@ void setup() {
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
-
   Serial1.begin(9600,SERIAL_7O1);
-  Serial2.begin(9600,SERIAL_7O1);
-  Serial3.begin(9600,SERIAL_7O1);
   //Iniciada la SDCard
    if (!SD.begin(4)) {
        return;    // init failed
@@ -57,19 +55,6 @@ void setup() {
      Serial.write("NANI");
        return;  // can't find index file
    }*/
-
-   if(SD.exists("lake.jso")){
-     SD.remove("lake.jso");
-   }
-   if(SD.exists("lake2.jso")){
-     SD.remove("lake2.jso");
-   }
-   if(SD.exists("lake3.jso")){
-     SD.remove("lake3.jso");
-   }
-   if(SD.exists("final.csv")){
-     SD.remove("final.csv");
-   }
    secs = 0;
 
   // You can use Ethernet.init(pin) to configure the CS pin
@@ -84,7 +69,6 @@ void setup() {
   if (Ethernet.begin(mac) == 0) {
     // Check for Ethernet hardware present
     if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-
       while (true) {
         delay(1); // do nothing, no point running without Ethernet hardware
       }
@@ -101,14 +85,14 @@ void setup() {
   while(epoch == 0){
     epoch = getTimeEpoch();
   }
-  if(SD.exists("final.csv")){
-    File modeloFinal = SD.open("final.csv", FILE_READ);
+  if(SD.exists("configs/config.ini")){
+    File configFile= SD.open("configs/config.ini");
     String config = "";
-    while(modeloFinal.available()){
-      char ltr = modeloFinal.read();
+    while(configFile.available()){
+      char ltr = configFile.read();
       config += ltr;
     }
-    iniciarConfig(config);
+    iniciarConfig(config, true);
     config = "";
   }
 }
@@ -126,12 +110,11 @@ void webServer(){
         char d;
         while(client.available()){
           d = client.read();
-          Serial.write(d);
           clientRequest += d;
           if(clientRequest.indexOf("Connection: keep-alive")>0){
             if(clientRequest.indexOf("boundary")>0){
               if(clientRequest.indexOf("[END]")>0){
-                iniciarConfig(clientRequest.substring(clientRequest.indexOf("[Header]"),clientRequest.lastIndexOf("[END]")));
+                iniciarConfig(clientRequest.substring(clientRequest.indexOf("[Header]"),clientRequest.lastIndexOf("[END]")+5),false);
                 clientRequest = "";
                 html = true;
               }
@@ -194,7 +177,7 @@ void webServer(){
           client.println();
 
           client.println("{\"data\":[");
-          File webFile = SD.open(nomFichero+".jso",FILE_READ);
+          File webFile = SD.open("json/"+nomFichero+".jso",FILE_READ);
           if(webFile){
             extendTime = millis();
             while(webFile.available()){
@@ -215,7 +198,7 @@ void webServer(){
           client.println("Connection:close");
           client.println();
           //Enviar pagina WebServer
-          File webFile = SD.open("final.csv");
+          File webFile = SD.open("datos/final.csv", FILE_READ);
           if(webFile){
             while(webFile.available()){
               client.write(webFile.read());
@@ -245,13 +228,14 @@ void webServer(){
 }
 
 void loop() {
-  //Cambio de fichero cada 5 mins ahora mismo
-  if(millis()-cambioFichero > 300000){
+  //Cambio de fichero cada 12 horas ahora mismo
+  if(millis()-cambioFichero > 43200000UL){
     numFichero++;
     nomFichero = "lake";
     nomFichero+= numFichero;
     cambioFichero = millis();
-    Serial.print(nomFichero);
+    //Serial.print(nomFichero);
+    puede = false;
   }
 
   if(millis() > 86400000UL ){
@@ -270,12 +254,8 @@ void loop() {
   if(secs%10 == 0 && secs != 0){
     SD.end();
     Serial1.end();
-    Serial2.end();
-    Serial3.end();
     //Serial.println("Cerro la conexion");
     Serial1.begin(9600,SERIAL_7O1);
-    Serial2.begin(9600,SERIAL_7O1);
-    Serial3.begin(9600,SERIAL_7O1);
     SD.begin(4);
     secs++;
     stop = false;
@@ -318,13 +298,13 @@ void mediciones(int puerto){
       }else{
         stop = false;
       }
-      if(SD.exists(nomFichero+".jso") && puede && stop){
-       File paraComa = SD.open(nomFichero+".jso",FILE_WRITE);
+      if(SD.exists("json/"+nomFichero+".jso") && puede && stop){
+       File paraComa = SD.open("json/"+nomFichero+".jso",FILE_WRITE);
        paraComa.println(",");
        paraComa.close();
       }
-      File lakeshoreData = SD.open(nomFichero+".jso",FILE_WRITE);
-      File modeloFinal = SD.open("final.csv",FILE_WRITE);
+      File lakeshoreData = SD.open("json/"+nomFichero+".jso",FILE_WRITE);
+      File modeloFinal = SD.open("datos/final.csv",FILE_WRITE);
 
       if(holi){
         tiempoMedicion = millis();
@@ -335,6 +315,10 @@ void mediciones(int puerto){
         //Serial.println("SD");
         if(stop){
           //Serial.println("Hola");
+          if(holi2){
+            modeloFinal.println();
+          }
+          holi2=true;
           lakeshoreData.print("{");
           lakeshoreData.print("\"secs\":\"");
           /*lakeshoreData.print(((epoch+3600) % 2629743UL) / 86400L);
@@ -354,9 +338,9 @@ void mediciones(int puerto){
           if((millis()-tiempoMedicion)<1000){
             modeloFinal.print(0);
           }else{
-            modeloFinal.print(((millis()-tiempoMedicion)/1000));
+            modeloFinal.print(((millis()-tiempoMedicion)/1000)+secsInicio);
           }
-          modeloFinal.print(", ");
+          modeloFinal.print("; ");
           modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
           modeloFinal.print(':');
 
@@ -386,7 +370,7 @@ void mediciones(int puerto){
           //Añadir fecha a la hora mostrada.
           lakeshoreData.print("\",");
           modeloFinal.print(epoch % 60);
-          modeloFinal.print(",");
+          modeloFinal.print(";");
         }
         //Este bucle se encargará de crear
         desplazamiento = 0;
@@ -396,15 +380,23 @@ void mediciones(int puerto){
             lakeshoreData.print("\"");
             lakeshoreData.print(canales1[i]);
             lakeshoreData.print("\":\"");
+            String aux = "";
             for (int j = 0; j < 7; j++) {
               lakeshoreData.print(temperaturas[j+desplazamiento]);
-              modeloFinal.print(temperaturas[j+desplazamiento]);
-            }if (i < CANALESSIZE-1){
+              aux += temperaturas[j+desplazamiento];
+            }
+            Serial.println(aux);
+            if(formatNum.equals(",")){
+              aux.replace(".",",");
+            }
+            Serial.println(aux);
+            modeloFinal.print(aux);
+            if (i < CANALESSIZE-1){
               if(canales1[i+1].equals("")){
                 lakeshoreData.print("\"");
               }else{
                 lakeshoreData.print("\",");
-                modeloFinal.print(", ");
+                modeloFinal.print("; ");
               }
             }else{
               lakeshoreData.print("\"");
@@ -419,13 +411,12 @@ void mediciones(int puerto){
         }
       }
       lakeshoreData.close();
-      modeloFinal.println();
       modeloFinal.close();
       break;
     }
 
     default:
-      Serial.write("HOLA");
+    ;
   }
 
 }
@@ -503,7 +494,58 @@ void sendNTPpacket(){
 
 }
 
-void iniciarConfig(String clientRequest){
+void iniciarConfig(String clientRequest, boolean inicio){
+  if(!inicio){
+    File dirConfig = SD.open("configs/");
+    File dirDatos = SD.open("datos/");
+    File prueba;
+    while(true){
+      prueba = dirDatos.openNextFile();
+      if(!prueba){
+        //Serial.println("--Done--");
+        break;
+      }
+      else{
+        String borrar = "datos/";
+        borrar += prueba.name();
+        SD.remove(borrar);
+      }
+    }
+    while(true){
+      prueba = dirConfig.openNextFile();
+      if(!prueba){
+        //Serial.println("--Done--");
+        break;
+      }
+      else{
+        String borrar = "configs/";
+        borrar += prueba.name();
+        SD.remove(borrar);
+      }
+    }
+    File dirJson = SD.open("json/");
+    File file;
+    while(true){
+      file = dirJson.openNextFile();
+      if(!file){
+        //Serial.println("--Done--");
+        break;
+      }
+      else{
+        String borrar = "json/";
+        borrar += file.name();
+        SD.remove(borrar);
+      }
+    }
+    file.close();
+    dirJson.close();
+    prueba.close();
+    prueba = SD.open("configs/config.ini",FILE_WRITE);
+    prueba.print(clientRequest);
+    dirConfig.close();
+    dirDatos.close();
+    prueba.close();
+  }
   int index;
   if ((index = clientRequest.lastIndexOf("Subsystem= "))>0) {
     int lastindex = clientRequest.indexOf("\nCicle");
@@ -518,13 +560,18 @@ void iniciarConfig(String clientRequest){
     responsible = clientRequest.substring(index+13,lastindex-1);
   }
   if((index = clientRequest.lastIndexOf("Objective= "))>0){
-    int lastindex = clientRequest.indexOf("\nTemperaturePeriod");
+    int lastindex = clientRequest.indexOf("\nFormatNum");
     objective = clientRequest.substring(index+11,lastindex-1);
+  }
+  if((index = clientRequest.lastIndexOf("FormatNum= "))>0){
+    int lastindex = clientRequest.indexOf("\nTemperaturePeriod");
+    formatNum = clientRequest.substring(index+11,lastindex-1);
   }
   if((index = clientRequest.lastIndexOf("TemperaturePeriod= "))>0){
     int lastindex = clientRequest.indexOf("\nPressurePeriod");
     tempPeriod = clientRequest.substring(index+19,lastindex-1).toInt();
   }
+
   if ((index = clientRequest.lastIndexOf("PressurePeriod= "))>0){
     int lastindex = clientRequest.indexOf("\n[MONITOR1]");
     pressurePeriod = clientRequest.substring(index+16,lastindex-1).toInt();
@@ -610,92 +657,77 @@ void iniciarConfig(String clientRequest){
       }
     }
 
-  Serial.println(subsystem);
-  Serial.println(cicle);
-  Serial.println(responsible);
-  Serial.println(objective);
-  Serial.println(tempPeriod);
-  Serial.println(pressurePeriod);
-  Serial.println(port1);
-  Serial.println(magnitude);
-  Serial.println(type);
-  Serial.println(canales1[0]);
-  Serial.println(canales1[1]);
-  Serial.println(canales1[2]);
-  Serial.println(canales1[3]);
-  Serial.println(canales1[4]);
-  Serial.println(canales1[5]);
-  Serial.println(canales1[6]);
-  Serial.println(canales1[7]);
-
-
 
   clientRequest = "";
-  SD.remove("final.csv");
-  File modeloFinal = SD.open("final.csv", FILE_WRITE);
-  modeloFinal.println("Subsistema o prototipo, Ciclado, Responsable, Objetivo de la prueba, Inicio, Final, Muestreo, COM1, Tipo");
-  modeloFinal.print(subsystem);
-  modeloFinal.print(", ");
-  //Serial.println(cicle);
-  modeloFinal.print(cicle);
-  modeloFinal.print(", ");
-  modeloFinal.print(responsible);
-  modeloFinal.print(", ");
-  modeloFinal.print(objective);
-  modeloFinal.print(", ");
-  modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
-  modeloFinal.print(":");
-  if (((epoch % 3600) / 60) < 10) {
-    // In the first 10 minutes of each hour, we'll want a leading '0'
-    modeloFinal.print("0");
-  }
-  modeloFinal.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
-  modeloFinal.print(":");
-  if ((epoch % 60) < 10) {
-    // In the first 10 seconds of each minute, we'll want a leading '0'
-    modeloFinal.print("0");
-  }
-  modeloFinal.print(epoch % 60);
-  modeloFinal.print(", ");
-  modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
-  modeloFinal.print(":");
-  if (((epoch % 3600) / 60) < 10) {
-    // In the first 10 minutes of each hour, we'll want a leading '0'
-    modeloFinal.print("0");
-  }
-  modeloFinal.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
-  modeloFinal.print(":");
-  if ((epoch % 60) < 10) {
-    // In the first 10 seconds of each minute, we'll want a leading '0'
-    modeloFinal.print('0');
-  }
-  modeloFinal.print(epoch % 60);
-  modeloFinal.print(", ");
-  modeloFinal.print(tempPeriod);
-  modeloFinal.print(", ");
-  modeloFinal.print(port1);
-  modeloFinal.print(", ");
-  modeloFinal.println(type);
-  modeloFinal.println();
-  modeloFinal.print("t(seg), Hora PC, ");
-  for (size_t i = 0; i < 8; i++) {
-    if(!canales1[i].equals("")){
-      modeloFinal.print(canales1[i]);
-      if(i<7){
-        if(!canales1[i+1].equals("")){
-          modeloFinal.print(", ");
+  if(!SD.exists("datos/final.csv")){
+    File modeloFinal = SD.open("datos/final.csv", FILE_WRITE);
+    modeloFinal.println("Subsistema o prototipo; Ciclado; Responsable; Objetivo de la prueba; Inicio; Final; Muestreo; COM1; Tipo");
+    modeloFinal.print(subsystem);
+    modeloFinal.print("; ");
+    //Serial.println(cicle);
+    modeloFinal.print(cicle);
+    modeloFinal.print("; ");
+    modeloFinal.print(responsible);
+    modeloFinal.print("; ");
+    modeloFinal.print(objective);
+    modeloFinal.print("; ");
+    modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+    modeloFinal.print(":");
+    if (((epoch % 3600) / 60) < 10) {
+      // In the first 10 minutes of each hour, we'll want a leading '0'
+      modeloFinal.print("0");
+    }
+    modeloFinal.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+    modeloFinal.print(":");
+    if ((epoch % 60) < 10) {
+      // In the first 10 seconds of each minute, we'll want a leading '0'
+      modeloFinal.print("0");
+    }
+    modeloFinal.print(epoch % 60);
+    modeloFinal.print("; ");
+    modeloFinal.print(((epoch+3600)  % 86400L) / 3600); // print the hour (86400 equals secs per day)
+    modeloFinal.print(":");
+    if (((epoch % 3600) / 60) < 10) {
+      // In the first 10 minutes of each hour, we'll want a leading '0'
+      modeloFinal.print("0");
+    }
+    modeloFinal.print((epoch  % 3600) / 60); // print the minute (3600 equals secs per minute)
+    modeloFinal.print(":");
+    if ((epoch % 60) < 10) {
+      // In the first 10 seconds of each minute, we'll want a leading '0'
+      modeloFinal.print('0');
+    }
+    modeloFinal.print(epoch % 60);
+    modeloFinal.print("; ");
+    modeloFinal.print(tempPeriod);
+    modeloFinal.print("; ");
+    modeloFinal.print(port1);
+    modeloFinal.print("; ");
+    modeloFinal.println(type);
+    modeloFinal.println();
+    modeloFinal.print("t(seg); Hora PC; ");
+    for (size_t i = 0; i < 8; i++) {
+      if(!canales1[i].equals("")){
+        modeloFinal.print(canales1[i]);
+        if(i<7){
+          if(!canales1[i+1].equals("")){
+            modeloFinal.print("; ");
+          }
         }
       }
+
     }
-
+    modeloFinal.println();
+    modeloFinal.close();
+  }else{
+    File final = SD.open("datos/final.csv", FILE_READ);
+    String config = "";
+    while(final.available()){
+      char ltr = final.read();
+      config += ltr;
+    }
+    String tts = config.substring(config.lastIndexOf('\n'));
+    tts = tts.substring(0, tts.indexOf(','));
+    secsInicio = tts.toInt();
   }
-  modeloFinal.println();
-  modeloFinal.close();
-  modeloFinal = SD.open("final.csv", FILE_READ);
-  while(modeloFinal.available()){
-    Serial.write(modeloFinal.read());
-
-  }
-  modeloFinal.close();
-  Serial.println("HOLAAA");
 }
