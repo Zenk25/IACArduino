@@ -45,10 +45,10 @@ void setup() {
   byte mac[] = {
     0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02
   };
-  Serial.begin(9600);
+  /*Serial.begin(9600);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
-  }
+  }*/
   Serial1.begin(9600,SERIAL_7O1);
   //Iniciada la SDCard
    if (!SD.begin(4)) {
@@ -96,7 +96,7 @@ void setup() {
     if (Ethernet.linkStatus() == LinkOFF) {
     }
   }
-  Serial.print(Ethernet.localIP());
+  //Serial.print(Ethernet.localIP());
   server.begin();
   Udp.begin(localPort);
   //Se recoge el tiempo desde el arranque del arduino.
@@ -405,11 +405,9 @@ void mediciones(int puerto){
               lakeshoreData.print(temperaturas[j+desplazamiento]);
               aux += temperaturas[j+desplazamiento];
             }
-            Serial.println(aux);
             if(formatNum.equals(",")){
               aux.replace(".",",");
             }
-            Serial.println(aux);
             modeloFinal.print(aux);
             if (i < CANALESSIZE-1){
               if(canales1[i+1].equals("")){
